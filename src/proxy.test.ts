@@ -24,7 +24,7 @@ describe('proxy host matching', () => {
     process.env.MC_ALLOWED_HOSTS = 'localhost,127.0.0.1'
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).not.toBe(403)
   })
 
@@ -47,7 +47,7 @@ describe('proxy host matching', () => {
     process.env.MC_ALLOWED_HOSTS = 'localhost,127.0.0.1'
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).toBe(403)
   })
 
@@ -76,7 +76,7 @@ describe('proxy host matching', () => {
     process.env.MC_ALLOWED_HOSTS = 'localhost,127.0.0.1'
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).not.toBe(401)
   })
 
@@ -105,7 +105,7 @@ describe('proxy host matching', () => {
     process.env.MC_ALLOWED_HOSTS = 'localhost,127.0.0.1'
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).toBe(401)
   })
 
@@ -138,7 +138,7 @@ describe('proxy host matching', () => {
     delete process.env.MC_ALLOW_ANY_HOST
     delete process.env.API_KEY
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).not.toBe(401)
   })
 
@@ -168,7 +168,7 @@ describe('proxy host matching', () => {
     delete process.env.MC_ALLOW_ANY_HOST
     delete process.env.API_KEY
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).toBe(401)
   })
 
@@ -191,7 +191,7 @@ describe('proxy host matching', () => {
     delete process.env.MC_ALLOWED_HOSTS
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).toBe(403)
   })
 
@@ -214,7 +214,7 @@ describe('proxy host matching', () => {
     delete process.env.MC_ALLOWED_HOSTS
     delete process.env.MC_ALLOW_ANY_HOST
 
-    const response = proxy(request)
+    const response = await proxy(request)
     expect(response.status).not.toBe(403)
   })
 })

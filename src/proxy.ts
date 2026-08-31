@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { buildMissionControlCsp, buildNonceRequestHeaders } from '@/lib/csp'
 import { MC_SESSION_COOKIE_NAME, LEGACY_MC_SESSION_COOKIE_NAME } from '@/lib/session-cookie'
+import { isAlbOidcEnabled, isAlbOidcExemptPath, verifyAlbOidcRequest } from '@/lib/alb-oidc'
 
 /** Constant-time string comparison using Node.js crypto. */
 function safeCompare(a: string, b: string): boolean {
@@ -155,7 +156,29 @@ function extractApiKeyFromRequest(request: NextRequest): string {
   return ''
 }
 
-export function proxy(request: NextRequest) {
+export function proxy(request: NextRequest): NextResponse | Promise<NextResponse> {
+  // ALB OIDC identity verification (defense in depth, gated by OPS_ALB_OIDC).
+  // When enabled, every request must carry a valid ALB-signed x-amzn-oidc-data
+  // JWT with an allowlisted email, except health probes and static assets.
+  // This layers IN FRONT of the session/API-key checks below — it never
+  // replaces them. Kept behind the flag so local dev and upstream behavior
+  // (including the sync return type expected by proxy.test.ts) are unchanged.
+  if (isAlbOidcEnabled() && !isAlbOidcExemptPath(request.nextUrl.pathname)) {
+    return verifyAlbOidcRequest(request.headers)
+      .then((result) => {
+        if (!result.ok) {
+          console.warn(`[alb-oidc] denied ${request.method} ${request.nextUrl.pathname}: ${result.reason}`)
+          return addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }), request)
+        }
+        return proxyCore(request)
+      })
+      .catch(() => addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }), request))
+  }
+
+  return proxyCore(request)
+}
+
+function proxyCore(request: NextRequest): NextResponse {
   // Network access control.
   // In production: default-deny unless explicitly allowed.
   // In dev/test: allow all hosts unless overridden.
