@@ -277,6 +277,39 @@ WebSocket upgrade path served by the custom server. ALB public keys are
 fetched from `https://public-keys.auth.elb.<region>.amazonaws.com/<kid>` and
 cached in memory for one hour. See [src/lib/alb-oidc.ts](src/lib/alb-oidc.ts).
 
+### Cockpit ops panels (`OPS_*` repo registry)
+
+Two panels read the markdown operating repos directly from git: **Notes**
+(`/notes`) renders any wiki page and turns an edit into a pull request, and
+**Run Timeline** (`/runs`) shows GitHub Actions runs, open automation PRs and the
+newest `log.md` entries. Git markdown stays the only source of truth — nothing is
+copied into the database, and the panels never commit to a default branch.
+
+```bash
+OPS_BRAIN_REPO=luismetzger/metzger-creative-brain          # zone z0 (default if unset)
+OPS_CLIENT_REPOS=kevin-anan=luismetzger/clients-kevin-anan # comma-separated slug=owner/repo, zone z1-<slug>
+OPS_GITHUB_TOKEN=ghp_...                                   # repo reads + PR creation
+OPS_OBSIDIAN_VAULTS=luismetzger/metzger-creative-brain=Brain  # optional, comma-separated owner/repo=VaultName
+```
+
+- `OPS_GITHUB_TOKEN` and `OPS_CLIENT_REPOS` are required; when either is unset
+  the panels render an explicit "not configured" state naming the variable
+  rather than an empty list. `OPS_BRAIN_REPO` falls back to the company brain
+  repo. `OPS_OBSIDIAN_VAULTS` is optional — without a vault name for a repo the
+  "Open in Obsidian" link is hidden instead of emitting a broken `obsidian://`
+  URI.
+- The zone badge on every row is derived from **which repo the row came from**
+  (`src/lib/ops-config.ts`), never from a caller-supplied prop. A repo outside
+  the configured set renders as `zone?`, never as `z0`.
+- Requests are restricted to the configured repo set, and page paths to
+  `wiki/`, `policies/`, `checklists/`, `architecture/`, `evals/` (company) or
+  `wiki/` (client). Nothing is cached server-side.
+- Editing posts to `/api/ops/notes`, which creates a `cockpit/edit-<slug>-<ts>`
+  branch, commits there, and opens a PR against the repo's default branch. The
+  action is audited as `ops_note_edit_proposed`.
+- One token does both reads and PR creation, so it needs write scope — a known
+  coarseness of v1. Auto-refresh on the timeline is floored at 60s.
+
 ## Develop
 
 ```bash

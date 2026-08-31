@@ -41,6 +41,7 @@ import { ChatPagePanel } from '@/components/panels/chat-page-panel'
 import { ChatPanel } from '@/components/chat/chat-panel'
 import { STORAGE_GATEWAY_URL } from '@/lib/device-identity'
 import { getPluginPanel } from '@/lib/plugins'
+import { renderOpsPanel } from '@/components/ops/register'
 import { shouldRedirectDashboardToHttps } from '@/lib/browser-security'
 import { useTranslations } from 'next-intl'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -642,6 +643,9 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'chat':
       return <ChatPagePanel />
     default: {
+      // Cockpit registry components (note panel, run timeline) resolve by panel id.
+      const opsPanel = renderOpsPanel(tab)
+      if (opsPanel) return opsPanel
       return renderPluginPanel(tab)
     }
   }

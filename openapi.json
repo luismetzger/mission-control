@@ -5016,6 +5016,373 @@
         }
       }
     },
+    "/api/ops/notes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List cockpit wiki pages, or render one page",
+        "description": "Reads markdown pages from the configured OPS_* repo set. Without `path`, returns the page index; with `repo` and `path`, returns the rendered page and its parsed frontmatter. Returns `configured: false` with the missing env var names when the panel is not configured.",
+        "operationId": "getOpsNotes",
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "owner/repo; must be in the configured ops repo set"
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page path, e.g. wiki/brand/voice.md"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page index, one page, or a not-configured payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "invalid": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "repos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repo": {
+                            "type": "string"
+                          },
+                          "zone": {
+                            "type": "string",
+                            "description": "z0 (company), z1-<slug> (client), p (public), or unknown"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "hasVault": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "pages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repo": {
+                            "type": "string"
+                          },
+                          "zone": {
+                            "type": "string",
+                            "description": "z0 (company), z1-<slug> (client), p (public), or unknown"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "section": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repo is not in the configured ops repo set"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "description": "GitHub read failed"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Propose a page edit as a pull request",
+        "description": "Creates a cockpit/edit-<slug>-<timestamp> branch, commits the edited markdown there, and opens a pull request against the repo default branch. Never commits to the default branch.",
+        "operationId": "createOpsNoteEditPullRequest",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "repo",
+                  "path",
+                  "content",
+                  "sha"
+                ],
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Full replacement markdown"
+                  },
+                  "sha": {
+                    "type": "string",
+                    "description": "Blob sha the edit was based on"
+                  },
+                  "summary": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pull request opened",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "prUrl": {
+                      "type": "string"
+                    },
+                    "prNumber": {
+                      "type": "integer"
+                    },
+                    "branch": {
+                      "type": "string"
+                    },
+                    "base": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing fields or repo outside the configured set"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "502": {
+            "description": "GitHub write failed"
+          }
+        }
+      }
+    },
+    "/api/ops/timeline": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Run ledger timeline across the configured ops repos",
+        "description": "Assembles recent GitHub Actions runs, open automation pull requests (branch prefixes compile/, log/, policy/, auth/, infra/, ops/, cockpit/) with staleness past 7 days, and the newest log.md entries. Read-only.",
+        "operationId": "getOpsTimeline",
+        "responses": {
+          "200": {
+            "description": "Timeline, or a not-configured payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "minRefreshMs": {
+                      "type": "integer"
+                    },
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repo": {
+                            "type": "string"
+                          },
+                          "zone": {
+                            "type": "string",
+                            "description": "z0 (company), z1-<slug> (client), p (public), or unknown"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "branch": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "conclusion": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "failed": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "htmlUrl": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "pulls": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repo": {
+                            "type": "string"
+                          },
+                          "zone": {
+                            "type": "string",
+                            "description": "z0 (company), z1-<slug> (client), p (public), or unknown"
+                          },
+                          "number": {
+                            "type": "integer"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "branch": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "ageDays": {
+                            "type": "integer"
+                          },
+                          "stalled": {
+                            "type": "boolean"
+                          },
+                          "htmlUrl": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "logEntries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "repo": {
+                            "type": "string"
+                          },
+                          "zone": {
+                            "type": "string",
+                            "description": "z0 (company), z1-<slug> (client), p (public), or unknown"
+                          },
+                          "date": {
+                            "type": "string"
+                          },
+                          "who": {
+                            "type": "string"
+                          },
+                          "what": {
+                            "type": "string"
+                          },
+                          "why": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "source": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "generatedAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "description": "Timeline assembly failed"
+          }
+        }
+      }
+    },
     "/api/pipelines": {
       "get": {
         "tags": [
