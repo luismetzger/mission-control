@@ -9,6 +9,7 @@ import { type IncomingMessage } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import { createPtySession, getPtySession } from './pty-manager'
 import { requireRole } from '@/lib/auth'
+import { isAlbOidcEnabled, verifyAlbOidcRequest } from '@/lib/alb-oidc'
 import { logger } from './logger'
 import { denyUnscopedResourceForStrictWorkspace } from './workspace-isolation'
 
@@ -197,11 +198,37 @@ export function handlePtyUpgrade(req: IncomingMessage, socket: any, head: Buffer
 
   if (url.pathname !== '/ws/pty') return false
 
+  // ALB OIDC identity verification (OPS_ALB_OIDC). WebSocket upgrades bypass
+  // the Next.js proxy (middleware), so enforce the same check here before the
+  // app's own role/session auth runs. Fails closed on any error.
+  if (isAlbOidcEnabled()) {
+    verifyAlbOidcRequest(toRequest(req).headers)
+      .then((result) => {
+        if (!result.ok) {
+          log.warn({ reason: result.reason, remote: req.socket?.remoteAddress }, 'Rejected PTY upgrade: ALB OIDC verification failed')
+          writeWsHttpError(socket, 403, 'Forbidden')
+          return
+        }
+        completePtyUpgrade(req, socket, head, url)
+      })
+      .catch((err) => {
+        log.warn({ err }, 'Rejected PTY upgrade: ALB OIDC verification error')
+        writeWsHttpError(socket, 403, 'Forbidden')
+      })
+    return true
+  }
+
+  completePtyUpgrade(req, socket, head, url)
+  return true
+}
+
+/** Continue the /ws/pty upgrade after any ALB OIDC gate has passed. */
+function completePtyUpgrade(req: IncomingMessage, socket: any, head: Buffer, url: URL): void {
   const parsed = validateUpgradeRequest(url)
   if (!parsed.ok) {
     log.warn({ reason: parsed.message, remote: req.socket?.remoteAddress }, 'Rejected PTY upgrade: invalid query params')
     writeWsHttpError(socket, parsed.status, parsed.message)
-    return true
+    return
   }
 
   const minRole = parsed.mode === 'interactive' ? 'operator' : 'viewer'
@@ -211,7 +238,7 @@ export function handlePtyUpgrade(req: IncomingMessage, socket: any, head: Buffer
     const message = auth.error || 'Authentication required'
     log.warn({ reason: message, status, minRole }, 'Rejected PTY upgrade: auth failed')
     writeWsHttpError(socket, status, message)
-    return true
+    return
   }
 
   const isolationDeny = denyUnscopedResourceForStrictWorkspace(
@@ -222,7 +249,7 @@ export function handlePtyUpgrade(req: IncomingMessage, socket: any, head: Buffer
   if (isolationDeny) {
     log.warn({ status: 403, minRole }, 'Rejected PTY upgrade: workspace isolation denied')
     writeWsHttpError(socket, 403, 'Terminal sessions are unavailable in this workspace')
-    return true
+    return
   }
 
   if (!wss) {
@@ -232,6 +259,4 @@ export function handlePtyUpgrade(req: IncomingMessage, socket: any, head: Buffer
   wss!.handleUpgrade(req, socket, head, (ws) => {
     wss!.emit('connection', ws, req)
   })
-
-  return true
 }

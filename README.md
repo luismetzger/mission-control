@@ -253,6 +253,30 @@ Access controls and security inspection surfaces are included, but alpha status
 still applies. Read [SECURITY-HARDENING.md](docs/SECURITY-HARDENING.md) before relying on a
 network-accessible deployment.
 
+### AWS ALB OIDC identity verification (`OPS_ALB_OIDC`)
+
+When Mission Control runs behind an AWS Application Load Balancer with an
+`authenticate-oidc` listener action, the ALB forwards the authenticated
+identity in the `x-amzn-oidc-data` header (an ES256 JWT signed by the ALB).
+By default the ALB admits **any** account from the identity provider. Set the
+following to make the app verify the ALB signature and enforce an operator
+email allowlist on every request (defense in depth — it layers in front of the
+built-in login/session system, never replaces it):
+
+```bash
+OPS_ALB_OIDC=true                                  # default: off (no behavior change)
+OPS_ALLOWED_EMAILS=you@example.com,ops@example.com # comma-separated, case-insensitive
+AWS_REGION=us-east-1                               # region of the ALB key endpoint (default us-east-1)
+```
+
+When enabled, requests without a valid, unexpired, allowlisted
+`x-amzn-oidc-data` JWT receive `403`. Exempt paths: `/api/health`, `/health`
+(ALB target health checks bypass listener auth), and Next.js static assets
+(`/_next/static`, favicon/icons). The check also guards the `/ws/pty`
+WebSocket upgrade path served by the custom server. ALB public keys are
+fetched from `https://public-keys.auth.elb.<region>.amazonaws.com/<kid>` and
+cached in memory for one hour. See [src/lib/alb-oidc.ts](src/lib/alb-oidc.ts).
+
 ## Develop
 
 ```bash
