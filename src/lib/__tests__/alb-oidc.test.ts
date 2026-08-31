@@ -224,4 +224,33 @@ describe('isAlbOidcExemptPath', () => {
     expect(isAlbOidcExemptPath('/api/healthz')).toBe(false)
     expect(isAlbOidcExemptPath('/login')).toBe(false)
   })
+
+  it('exempts the container health probe /api/status?action=health', () => {
+    expect(isAlbOidcExemptPath('/api/status?action=health')).toBe(true)
+  })
+
+  it('keeps /api/status behind auth for every other query shape', () => {
+    expect(isAlbOidcExemptPath('/api/status')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=full')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=system')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=HEALTH')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=health%20')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?actions=health')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?foo=bar')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status/detail?action=health')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/statuses?action=health')).toBe(false)
+  })
+
+  it('does not let a second action parameter smuggle another status action through', () => {
+    expect(isAlbOidcExemptPath('/api/status?action=health&action=system')).toBe(false)
+    expect(isAlbOidcExemptPath('/api/status?action=system&action=health')).toBe(false)
+  })
+
+  it('tolerates a query string on the paths that were already exempt', () => {
+    expect(isAlbOidcExemptPath('/api/health?probe=1')).toBe(true)
+    expect(isAlbOidcExemptPath('/_next/static/chunks/main.js?v=2')).toBe(true)
+    expect(isAlbOidcExemptPath('/api/agents?action=health')).toBe(false)
+  })
 })

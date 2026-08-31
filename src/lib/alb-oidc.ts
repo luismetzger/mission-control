@@ -82,11 +82,32 @@ export function getAllowedEmails(): string[] {
 }
 
 /**
- * Paths exempt from ALB OIDC enforcement: health probes (ALB target health
- * checks do not pass through listener auth rules) and Next static assets.
+ * The container HEALTHCHECK (see Dockerfile) runs `node /app/healthcheck.js`,
+ * which requests `/api/status?action=health` from inside the container with no
+ * ALB in front of it and therefore no `x-amzn-oidc-data` header. Only that one
+ * query shape is exempt: `/api/status` otherwise returns system information and
+ * stays behind auth.
  */
-export function isAlbOidcExemptPath(pathname: string): boolean {
+function isContainerHealthProbe(pathname: string, query: string): boolean {
+  if (pathname !== '/api/status') return false
+  const actions = new URLSearchParams(query).getAll('action')
+  return actions.length === 1 && actions[0] === 'health'
+}
+
+/**
+ * Paths exempt from ALB OIDC enforcement: health probes (ALB target health
+ * checks do not pass through listener auth rules, and the container's own
+ * HEALTHCHECK never traverses the ALB) and Next static assets.
+ *
+ * Accepts either a bare pathname or a pathname with its query string
+ * (`/api/status?action=health`), so callers may pass `pathname + search`.
+ */
+export function isAlbOidcExemptPath(pathnameWithQuery: string): boolean {
+  const queryStart = pathnameWithQuery.indexOf('?')
+  const pathname = queryStart === -1 ? pathnameWithQuery : pathnameWithQuery.slice(0, queryStart)
+  const query = queryStart === -1 ? '' : pathnameWithQuery.slice(queryStart + 1)
   if (pathname === '/api/health' || pathname === '/health') return true
+  if (isContainerHealthProbe(pathname, query)) return true
   if (pathname.startsWith('/_next/static/') || pathname.startsWith('/_next/image')) return true
   if (pathname === '/favicon.ico' || pathname === '/icon.png' || pathname === '/apple-icon.png') return true
   return false

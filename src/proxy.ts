@@ -160,10 +160,12 @@ export function proxy(request: NextRequest): NextResponse | Promise<NextResponse
   // ALB OIDC identity verification (defense in depth, gated by OPS_ALB_OIDC).
   // When enabled, every request must carry a valid ALB-signed x-amzn-oidc-data
   // JWT with an allowlisted email, except health probes and static assets.
+  // The query string is included because the container HEALTHCHECK probe is
+  // exempt only for the exact shape /api/status?action=health.
   // This layers IN FRONT of the session/API-key checks below — it never
   // replaces them. Kept behind the flag so local dev and upstream behavior
   // (including the sync return type expected by proxy.test.ts) are unchanged.
-  if (isAlbOidcEnabled() && !isAlbOidcExemptPath(request.nextUrl.pathname)) {
+  if (isAlbOidcEnabled() && !isAlbOidcExemptPath(request.nextUrl.pathname + request.nextUrl.search)) {
     return verifyAlbOidcRequest(request.headers)
       .then((result) => {
         if (!result.ok) {

@@ -48,6 +48,8 @@ const navGroups: NavGroup[] = [
       { id: 'cost-tracker', label: 'Cost Tracker', icon: <TokensIcon />, priority: false },
       { id: 'nodes', label: 'Nodes', icon: <NodesIcon />, priority: false },
       { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
+      { id: 'notes', label: 'Notes', icon: <NotesIcon />, priority: false },
+      { id: 'runs', label: 'Run Timeline', icon: <RunTimelineIcon />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
     ],
@@ -1503,6 +1505,27 @@ function ApprovalsIcon() {
       <path d="M8 1v4M4.5 3l2 2M11.5 3l-2 2" />
       <rect x="2" y="6" width="12" height="9" rx="1.5" />
       <path d="M5.5 10.5l2 2 3.5-4" />
+    </svg>
+  )
+}
+
+function NotesIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 2h6L13 5.5V14H3.5z" />
+      <path d="M9.5 2v3.5H13" />
+      <path d="M5.5 8.5h5M5.5 11h3.5" />
+    </svg>
+  )
+}
+
+function RunTimelineIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+      <circle cx="5.5" cy="4" r="1.5" />
+      <circle cx="10" cy="8" r="1.5" />
+      <circle cx="7" cy="12" r="1.5" />
     </svg>
   )
 }
