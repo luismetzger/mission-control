@@ -15,7 +15,10 @@ export type FetchImpl = (input: string, init?: RequestInit) => Promise<Response>
 export interface OpsGitHubRequest {
   path: string
   token: string
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH'
+  // DELETE is here for the contents API, which is how a decided approval
+  // request leaves queue/ (see proposeDisposition). It is only ever issued
+  // against a cockpit/* branch, never a default branch.
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   fetchImpl?: FetchImpl
   timeoutMs?: number

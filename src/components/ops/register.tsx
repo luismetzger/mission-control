@@ -9,6 +9,7 @@
  */
 
 import { createElement } from 'react'
+import { ApprovalCardPanel } from '@/components/panels/approval-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
 import {
@@ -35,6 +36,20 @@ if (listOpsComponents().length === 0) {
     maxActionTier: 'read-only',
     component: RunTimelinePanel,
   })
+
+  registerOpsComponent({
+    kind: 'approval-card',
+    // Not 'approvals': the upstream template already ships an 'exec-approvals'
+    // panel, and two nav entries reading "Approvals" is exactly the ambiguity
+    // a T3 control should not have.
+    panelId: 'ops-approvals',
+    title: 'T3 approvals',
+    // The tier of the action being decided, not of what this panel does — the
+    // panel itself only opens a PR. Recorded as T3 so the registry answers
+    // "what is the most consequential thing reachable from here" honestly.
+    maxActionTier: 'T3',
+    component: ApprovalCardPanel,
+  })
 }
 
 export { getOpsComponentByPanelId, listOpsComponents }
@@ -46,8 +61,8 @@ export function opsPanelIds(): string[] {
 
 /**
  * Render a registered component by panel id, or null when the id is not ours.
- * Props are supplied per kind by the caller; v1 kinds both accept zero props
- * and derive zone from the API payload.
+ * Props are supplied per kind by the caller; every registered kind accepts zero
+ * props and derives zone from the API payload.
  */
 export function renderOpsPanel(panelId: string): React.ReactElement | null {
   const def: OpsComponentDef | undefined = getOpsComponentByPanelId(panelId)

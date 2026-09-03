@@ -7,9 +7,9 @@
  * `ComponentKind` union, one props contract per kind, and a single place where
  * the next kind lands.
  *
- * Deliberately small. A registry no component uses is speculative, so v1
- * registers exactly two kinds — `note-panel` and `run-timeline` — from
- * `src/components/ops/register.tsx`.
+ * Deliberately small. A registry no component uses is speculative, so it
+ * registers only kinds that exist: `note-panel`, `run-timeline`, and
+ * `approval-card`, from `src/components/ops/register.tsx`.
  *
  * Module-scoped registry following the existing register*() pattern
  * (registerPluginPanels in plugins.ts, registerAuthResolver in auth.ts).
@@ -72,13 +72,25 @@ export interface RunTimelineProps {
   refreshIntervalMs?: number
 }
 
+/** Props contract for `approval-card`. */
+export interface ApprovalCardProps {
+  /** Queue path to expand on mount, e.g. `queue/2026-09-02-ops-token.md`. */
+  initialPath?: string
+  /** Show recent decisions alongside the pending queue. Default true. */
+  showDecided?: boolean
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
   'run-timeline': RunTimelineProps
-  // Next: 'approval-card' — T3 queue items with evidence, recommendation and
-  // voice read-back. Deliberately out of scope for this PR; T3 actions must
-  // never render as one-click optimistic buttons (architecture/04 §2).
+  // T3 queue items with evidence and recommendation. Its `maxActionTier` is
+  // 'T3' and it is the only kind that reaches that tier, but note what the
+  // action actually is: it opens a pull request. T3 must never render as a
+  // one-click optimistic button (architecture/04 §2), and here it cannot —
+  // the cockpit has no write access to a default branch, so merging is the
+  // decision. Voice read-back is 2.2c and lands on this same kind.
+  'approval-card': ApprovalCardProps
 }
 
 export type ComponentKind = keyof OpsComponentPropsByKind

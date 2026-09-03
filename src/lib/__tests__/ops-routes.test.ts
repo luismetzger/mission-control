@@ -1,7 +1,12 @@
 /**
- * Tests for /api/ops/notes and /api/ops/timeline — auth, the repo allowlist,
- * and the "not configured" contract (explicit missing variable names, never an
- * empty list and never a crash).
+ * Tests for /api/ops/notes, /api/ops/timeline and /api/ops/queue — auth, the
+ * repo allowlist, and the "not configured" contract (explicit missing variable
+ * names, never an empty list and never a crash).
+ *
+ * The queue cases go further, because it is the only route that reaches a T3
+ * decision: they assert that the decider is the session and not the body, that
+ * a policy refusal happens before any write, and that the route cannot be
+ * pointed at a client zone.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
@@ -13,6 +18,9 @@ const listPagesMock = vi.fn()
 const fetchPageMock = vi.fn()
 const proposeEditMock = vi.fn()
 const assembleTimelineMock = vi.fn()
+const fetchQueueMock = vi.fn()
+const fetchRequestMock = vi.fn()
+const proposeDispositionMock = vi.fn()
 
 vi.mock('@/lib/auth', () => ({ requireRole: requireRoleMock }))
 vi.mock('@/lib/rate-limit', () => ({ mutationLimiter: mutationLimiterMock }))
@@ -24,6 +32,11 @@ vi.mock('@/lib/ops-notes', () => ({
   proposeEdit: proposeEditMock,
 }))
 vi.mock('@/lib/ops-timeline-sources', () => ({ assembleTimeline: assembleTimelineMock }))
+vi.mock('@/lib/ops-queue-sources', () => ({
+  fetchQueue: fetchQueueMock,
+  fetchRequest: fetchRequestMock,
+  proposeDisposition: proposeDispositionMock,
+}))
 
 const operator = { user: { id: 7, username: 'luis', role: 'operator', workspace_id: 1 } }
 
@@ -45,6 +58,41 @@ async function notesRoute() {
 }
 async function timelineRoute() {
   return await import('@/app/api/ops/timeline/route')
+}
+async function queueRoute() {
+  return await import('@/app/api/ops/queue/route')
+}
+
+/** A live, decidable request as ops-queue-sources would return it. */
+function liveRequest(over: Record<string, unknown> = {}) {
+  return {
+    repo: 'luismetzger/metzger-creative-brain',
+    path: 'queue/2026-09-02-ops-token.md',
+    title: 'Move the ops token out of terraform state',
+    tier: 'T3',
+    requestedBy: 'computer',
+    actionZone: 'z0',
+    disposition: 'pending',
+    decidedBy: null,
+    decidedAt: null,
+    createdAt: '2026-09-02',
+    archived: false,
+    sources: ['https://github.com/luismetzger/metzger-creative-brain/pull/20'],
+    expiry: { state: 'ok', daysRemaining: 14, expiresAt: '2026-09-16' },
+    sections: [],
+    warnings: [],
+    approveRefusal: null,
+    htmlUrl: '',
+    ...over,
+  }
+}
+
+function queuePost(body: unknown) {
+  return new NextRequest('http://localhost/api/ops/queue', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
 }
 
 describe('ops API routes', () => {
@@ -206,5 +254,212 @@ describe('ops API routes', () => {
     const { GET: GET2 } = await timelineRoute()
     const missing = await (await GET2(new NextRequest('http://localhost/api/ops/timeline'))).json()
     expect(missing).toMatchObject({ configured: false, missing: ['OPS_GITHUB_TOKEN'], runs: [] })
+  })
+})
+
+describe('/api/ops/queue', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    vi.resetModules()
+    vi.clearAllMocks()
+    requireRoleMock.mockReturnValue(operator)
+    mutationLimiterMock.mockReturnValue(null)
+    setEnv(CONFIGURED_ENV)
+    fetchQueueMock.mockResolvedValue({
+      repo: 'luismetzger/metzger-creative-brain',
+      pending: [liveRequest()],
+      decided: [],
+      errors: [],
+    })
+    fetchRequestMock.mockResolvedValue({ request: liveRequest(), raw: '', sha: 'blob' })
+    proposeDispositionMock.mockResolvedValue({
+      prUrl: 'https://github.com/luismetzger/metzger-creative-brain/pull/21',
+      prNumber: 21,
+      branch: 'cockpit/disposition-2026-09-02-ops-token-20260903T000000Z',
+      base: 'main',
+      archivePath: 'archive/queue/2026-09-02-ops-token.md',
+      disposition: 'approved',
+    })
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
+  it('rejects an unauthenticated read', async () => {
+    requireRoleMock.mockReturnValue({ error: 'Unauthorized', status: 401 })
+    const { GET } = await queueRoute()
+    const res = await GET(new NextRequest('http://localhost/api/ops/queue'))
+    expect(res.status).toBe(401)
+    expect(fetchQueueMock).not.toHaveBeenCalled()
+  })
+
+  it('returns a not-configured payload naming the missing variables', async () => {
+    setEnv({ OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan' })
+    const { GET } = await queueRoute()
+    const body = await (await GET(new NextRequest('http://localhost/api/ops/queue'))).json()
+    expect(body).toMatchObject({ configured: false, missing: ['OPS_GITHUB_TOKEN'], pending: [] })
+    expect(fetchQueueMock).not.toHaveBeenCalled()
+  })
+
+  it('serves the queue, and one request with the sha needed to decide it', async () => {
+    const { GET } = await queueRoute()
+    const list = await (await GET(new NextRequest('http://localhost/api/ops/queue'))).json()
+    expect(list).toMatchObject({ configured: true, repo: 'luismetzger/metzger-creative-brain' })
+    expect(list.pending).toHaveLength(1)
+
+    const one = await (
+      await GET(new NextRequest('http://localhost/api/ops/queue?path=queue/2026-09-02-ops-token.md'))
+    ).json()
+    expect(one).toMatchObject({ configured: true, sha: 'blob' })
+    expect(fetchRequestMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'queue/2026-09-02-ops-token.md',
+      expect.anything(),
+    )
+  })
+
+  it('requires the operator role to decide', async () => {
+    requireRoleMock.mockReturnValue({ error: 'Forbidden', status: 403 })
+    const { POST } = await queueRoute()
+    const res = await POST(queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'approved', sha: 'blob' }))
+    expect(res.status).toBe(403)
+    expect(proposeDispositionMock).not.toHaveBeenCalled()
+  })
+
+  it('honours the mutation rate limiter', async () => {
+    mutationLimiterMock.mockReturnValue(NextResponse.json({ error: 'rate limited' }, { status: 429 }))
+    const { POST } = await queueRoute()
+    const res = await POST(queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'approved', sha: 'blob' }))
+    expect(res.status).toBe(429)
+    expect(proposeDispositionMock).not.toHaveBeenCalled()
+  })
+
+  it('requires path and sha, and rejects a disposition outside the enum', async () => {
+    const { POST } = await queueRoute()
+    expect((await POST(queuePost({ disposition: 'approved', sha: 'blob' }))).status).toBe(400)
+    expect((await POST(queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'approved' }))).status).toBe(400)
+    const bad = await POST(
+      queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'pending', sha: 'blob' }),
+    )
+    expect(bad.status).toBe(400)
+    // 'pending' is the absence of a decision, so it must not reach the write path.
+    expect(proposeDispositionMock).not.toHaveBeenCalled()
+  })
+
+  it('opens a PR and records who decided from the session, not the body', async () => {
+    const { POST } = await queueRoute()
+    const res = await POST(
+      queuePost({
+        path: 'queue/2026-09-02-ops-token.md',
+        disposition: 'approved',
+        sha: 'blob',
+        note: 'ok',
+        // A caller-supplied decider must be ignored entirely.
+        decidedBy: 'someone-else',
+      }),
+    )
+    expect(res.status).toBe(200)
+    expect((await res.json()).prNumber).toBe(21)
+    expect(proposeDispositionMock.mock.calls[0][1]).toMatchObject({
+      path: 'queue/2026-09-02-ops-token.md',
+      disposition: 'approved',
+      decidedBy: 'luis',
+      sha: 'blob',
+    })
+    expect(logAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'ops_t3_disposition_proposed', actor: 'luis' }),
+    )
+  })
+
+  it('refuses to approve an expired request before writing anything', async () => {
+    fetchRequestMock.mockResolvedValue({
+      request: liveRequest({
+        expiry: { state: 'expired', daysRemaining: -4, expiresAt: '2026-08-29' },
+      }),
+      raw: '',
+      sha: 'blob',
+    })
+    const { POST } = await queueRoute()
+    const res = await POST(
+      queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'approved', sha: 'blob' }),
+    )
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toMatch(/rule 6/)
+    // Nothing was opened: silence is denial, so an expired request leaves the
+    // queue as expired or not at all.
+    expect(proposeDispositionMock).not.toHaveBeenCalled()
+  })
+
+  it('still lets an expired request be recorded as expired', async () => {
+    fetchRequestMock.mockResolvedValue({
+      request: liveRequest({
+        expiry: { state: 'expired', daysRemaining: -4, expiresAt: '2026-08-29' },
+      }),
+      raw: '',
+      sha: 'blob',
+    })
+    const { POST } = await queueRoute()
+    const res = await POST(
+      queuePost({ path: 'queue/2026-09-02-ops-token.md', disposition: 'expired', sha: 'blob' }),
+    )
+    expect(res.status).toBe(200)
+    expect(proposeDispositionMock).toHaveBeenCalled()
+  })
+
+  it('refuses to re-decide a decided request', async () => {
+    fetchRequestMock.mockResolvedValue({
+      request: liveRequest({
+        disposition: 'approved',
+        archived: true,
+        path: 'archive/queue/2026-09-02-ops-token.md',
+      }),
+      raw: '',
+      sha: 'blob',
+    })
+    const { POST } = await queueRoute()
+    const res = await POST(
+      queuePost({ path: 'archive/queue/2026-09-02-ops-token.md', disposition: 'denied', sha: 'blob' }),
+    )
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toMatch(/already approved/)
+    expect(proposeDispositionMock).not.toHaveBeenCalled()
+  })
+
+  it('takes no repo parameter, so the queue is always read from the brain repo', async () => {
+    const { GET, POST } = await queueRoute()
+    await GET(
+      new NextRequest(
+        'http://localhost/api/ops/queue?repo=luismetzger/clients-kevin-anan&path=queue/2026-09-02-x.md',
+      ),
+    )
+    // The repo query param is simply not read; the config's brain repo is.
+    expect(fetchRequestMock.mock.calls[0][1]).toBe('queue/2026-09-02-x.md')
+    expect(fetchRequestMock.mock.calls[0][0]).toMatchObject({
+      brainRepo: expect.objectContaining({ repo: 'luismetzger/metzger-creative-brain', zone: 'z0' }),
+    })
+
+    await POST(
+      queuePost({
+        repo: 'luismetzger/clients-kevin-anan',
+        path: 'queue/2026-09-02-ops-token.md',
+        disposition: 'denied',
+        sha: 'blob',
+      }),
+    )
+    expect(proposeDispositionMock.mock.calls[0][0]).toMatchObject({
+      brainRepo: expect.objectContaining({ zone: 'z0' }),
+    })
+  })
+
+  it('reports a read failure as 502 rather than an empty queue', async () => {
+    fetchQueueMock.mockRejectedValue(new Error('GitHub 503'))
+    const { GET } = await queueRoute()
+    const res = await GET(new NextRequest('http://localhost/api/ops/queue'))
+    expect(res.status).toBe(502)
+    // An empty queue and an unreadable queue mean opposite things to an
+    // operator, so they must never render the same.
+    expect((await res.json()).error).toMatch(/GitHub 503/)
   })
 })

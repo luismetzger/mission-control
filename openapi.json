@@ -5224,6 +5224,111 @@
         }
       }
     },
+    "/api/ops/queue": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Read the T3 approval queue, or one approval request",
+        "description": "Reads approval requests from `queue/` and `archive/queue/` in the brain repo (OPS_BRAIN_REPO). The queue is Z0 by policy, so there is no repo parameter and no caller-supplied repo to point at a client zone. Without `path`, returns pending requests plus recent decisions; with `path`, returns one request and the blob sha required to decide it. Returns `configured: false` with the missing env var names when the panel is not configured.",
+        "operationId": "getOpsQueue",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Queue path, e.g. queue/2026-09-02-september-ai-envelope.md"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The queue, one request, or a not-configured payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": { "type": "boolean" },
+                    "missing": { "type": "array", "items": { "type": "string" } },
+                    "invalid": { "type": "array", "items": { "type": "string" } },
+                    "repo": { "type": "string" },
+                    "pending": { "type": "array", "items": { "$ref": "#/components/schemas/OpsApprovalRequest" } },
+                    "decided": { "type": "array", "items": { "$ref": "#/components/schemas/OpsApprovalRequest" } },
+                    "request": { "$ref": "#/components/schemas/OpsApprovalRequest" },
+                    "sha": {
+                      "type": "string",
+                      "description": "Blob sha of the request as read; POST requires it for optimistic concurrency."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Per-file read failures, reported rather than thrown.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": { "type": "string" },
+                          "message": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "502": { "description": "The brain repo could not be read" }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Propose a disposition for a T3 approval request as a pull request",
+        "description": "Opens a pull request on the brain repo moving the request from `queue/` to `archive/queue/` with its disposition recorded. It does not record the decision: the cockpit has no write access to the default branch, so merging the pull request is the approval. `decided_by` is taken from the authenticated session and is never read from the body. Refuses (409) to approve an expired request or to re-decide a decided one, and refuses any path outside `queue/` in the brain repo. Everything above the `## Disposition` section is reproduced byte-for-byte or the call fails.",
+        "operationId": "proposeOpsQueueDisposition",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["path", "disposition", "sha"],
+                "properties": {
+                  "path": { "type": "string", "description": "queue/<date>-<slug>.md" },
+                  "disposition": { "type": "string", "enum": ["approved", "denied", "expired"] },
+                  "sha": { "type": "string", "description": "Blob sha returned by GET; a mismatch aborts the write." },
+                  "note": { "type": "string", "description": "Optional reasoning, recorded under ## Disposition." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pull request opened",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": { "type": "boolean" },
+                    "prUrl": { "type": "string" },
+                    "prNumber": { "type": "integer" },
+                    "branch": { "type": "string", "description": "Always cockpit/disposition-*" },
+                    "base": { "type": "string" },
+                    "archivePath": { "type": "string" },
+                    "disposition": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid body, unknown disposition, or a path outside the queue" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "description": "Refused by policy: approving an expired request, or re-deciding a decided one" },
+          "429": { "description": "Rate limited" },
+          "502": { "description": "The pull request could not be opened" }
+        }
+      }
+    },
     "/api/ops/timeline": {
       "get": {
         "tags": [
@@ -12187,6 +12292,52 @@
       }
     },
     "schemas": {
+      "OpsApprovalRequest": {
+        "type": "object",
+        "description": "One T3 approval request, as parsed from a markdown file in the brain repo's queue/ or archive/queue/. Parse problems become warnings rather than omissions: a malformed request still renders, because a request that silently disappears is a request that never gets decided.",
+        "properties": {
+          "repo": { "type": "string" },
+          "path": { "type": "string", "description": "queue/<date>-<slug>.md or archive/queue/<date>-<slug>.md" },
+          "title": { "type": "string" },
+          "requestedBy": { "type": "string" },
+          "actionZone": {
+            "type": "string",
+            "description": "Zone the requested action lands in: z0 (company), z1-<slug> (client), p (public), or unknown"
+          },
+          "tier": { "type": "string", "description": "Always T3; the queue holds no other tier." },
+          "disposition": { "type": "string", "enum": ["pending", "approved", "denied", "expired"] },
+          "decidedBy": { "type": "string", "nullable": true },
+          "decidedAt": { "type": "string", "nullable": true },
+          "createdAt": { "type": "string", "nullable": true },
+          "archived": { "type": "boolean", "description": "true when the request lives under archive/queue/" },
+          "approveRefusal": {
+            "type": "string",
+            "nullable": true,
+            "description": "Why this request may not be approved, or null when it may. Computed server-side by the same code the POST enforces, so the card never offers a control the API would reject."
+          },
+          "htmlUrl": { "type": "string", "nullable": true },
+          "expiry": {
+            "type": "object",
+            "properties": {
+              "state": { "type": "string", "enum": ["ok", "due-soon", "expired", "missing", "invalid"] },
+              "expiresAt": { "type": "string", "nullable": true },
+              "daysRemaining": { "type": "integer", "nullable": true }
+            }
+          },
+          "sources": { "type": "array", "items": { "type": "string" } },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": { "type": "string" },
+                "body": { "type": "string" }
+              }
+            }
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      },
       "Error": {
         "type": "object",
         "required": [

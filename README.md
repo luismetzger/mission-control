@@ -279,10 +279,11 @@ cached in memory for one hour. See [src/lib/alb-oidc.ts](src/lib/alb-oidc.ts).
 
 ### Cockpit ops panels (`OPS_*` repo registry)
 
-Two panels read the markdown operating repos directly from git: **Notes**
-(`/notes`) renders any wiki page and turns an edit into a pull request, and
+Three panels read the markdown operating repos directly from git: **Notes**
+(`/notes`) renders any wiki page and turns an edit into a pull request,
 **Run Timeline** (`/runs`) shows GitHub Actions runs, open automation PRs and the
-newest `log.md` entries. Git markdown stays the only source of truth — nothing is
+newest `log.md` entries, and **T3 Approvals** (`/ops-approvals`) renders the
+approval queue. Git markdown stays the only source of truth — nothing is
 copied into the database, and the panels never commit to a default branch.
 
 ```bash
@@ -309,6 +310,37 @@ OPS_OBSIDIAN_VAULTS=luismetzger/metzger-creative-brain=Brain  # optional, comma-
   action is audited as `ops_note_edit_proposed`.
 - One token does both reads and PR creation, so it needs write scope — a known
   coarseness of v1. Auto-refresh on the timeline is floored at 60s.
+
+#### T3 Approvals (`/ops-approvals`)
+
+Renders the T3 approval queue from the brain repo — `queue/` pending,
+`archive/queue/` decided — per `policies/t3-queue.md`. Each card shows the
+requested action, evidence, blast radius, recommendation, and how long is left
+before the request expires.
+
+**The panel cannot approve anything.** Every control opens a pull request; the
+cockpit has no write access to a default branch, so *merging the PR is the
+approval*. That is why the buttons read "Draft approval PR" rather than
+"Approve", and why there is no typed-confirmation modal: a PR you still have to
+read and merge is already a real gate, and stacking ceremony in front of it
+would only make a reviewable action *look* supervised.
+
+- The queue is Z0 by policy, so `/api/ops/queue` takes **no repo parameter** —
+  there is no caller-supplied repo here that could point at a client zone.
+  `isQueuePath` refuses any path whose repo ref is not zone `z0`.
+- `decided_by` comes from the authenticated session and is never read from the
+  request body, so a decision cannot be attributed to someone who did not make
+  it. Audited as `ops_t3_disposition_proposed`.
+- **An expired request cannot be approved** (`t3-queue.md` rule 6). The card
+  hides the approve control and the API refuses it again with `409` — a disabled
+  button is a hint, not a rule. Recording it as `expired` is still allowed;
+  that is how it leaves the queue. Silence is denial.
+- **A disposition may not edit the request** (rule 8). The wiki gate cannot
+  check this — it reads the tree, not the diff — but the cockpit builds the
+  diff, so `buildDisposition` reproduces everything above `## Disposition`
+  byte-for-byte or throws.
+- A malformed request still renders, carrying warnings. A request that silently
+  disappears is a request that never gets decided.
 
 ## Develop
 
