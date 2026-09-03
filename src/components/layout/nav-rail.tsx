@@ -50,6 +50,7 @@ const navGroups: NavGroup[] = [
       { id: 'exec-approvals', label: 'Approvals', icon: <ApprovalsIcon />, priority: false },
       { id: 'notes', label: 'Notes', icon: <NotesIcon />, priority: false },
       { id: 'runs', label: 'Run Timeline', icon: <RunTimelineIcon />, priority: false },
+      { id: 'ops-approvals', label: 'T3 Approvals', icon: <T3ApprovalsIcon />, priority: false },
       { id: 'office', label: 'Office', icon: <OfficeIcon />, priority: false },
       { id: 'monitor', label: 'Monitor', icon: <MonitorIcon />, priority: false },
     ],
@@ -1515,6 +1516,15 @@ function NotesIcon() {
       <path d="M3.5 2h6L13 5.5V14H3.5z" />
       <path d="M9.5 2v3.5H13" />
       <path d="M5.5 8.5h5M5.5 11h3.5" />
+    </svg>
+  )
+}
+
+function T3ApprovalsIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 1.5 13.5 4v4.5c0 3-2.3 5.2-5.5 6-3.2-.8-5.5-3-5.5-6V4z" />
+      <path d="M5.75 8.25 7.25 9.75l3-3.5" />
     </svg>
   )
 }
