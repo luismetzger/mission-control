@@ -80,10 +80,20 @@ export interface ApprovalCardProps {
   showDecided?: boolean
 }
 
+/** Props contract for `voice-console`. Zero props — it derives everything from
+ * the event stream and the user's stored audio preferences. */
+export interface VoiceConsoleProps {
+  /** Reserved for deep-linking a specific transition. */
+  focusEventId?: string
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
   'run-timeline': RunTimelineProps
+  // Tier-1 audio feedback over the ops transition stream. Read-only: it makes
+  // noise about state, it never changes it.
+  'voice-console': VoiceConsoleProps
   // T3 queue items with evidence and recommendation. Its `maxActionTier` is
   // 'T3' and it is the only kind that reaches that tier, but note what the
   // action actually is: it opens a pull request. T3 must never render as a
