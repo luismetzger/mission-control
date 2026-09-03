@@ -282,8 +282,8 @@ cached in memory for one hour. See [src/lib/alb-oidc.ts](src/lib/alb-oidc.ts).
 Three panels read the markdown operating repos directly from git: **Notes**
 (`/notes`) renders any wiki page and turns an edit into a pull request,
 **Run Timeline** (`/runs`) shows GitHub Actions runs, open automation PRs and the
-newest `log.md` entries, and **T3 Approvals** (`/ops-approvals`) renders the
-approval queue. Git markdown stays the only source of truth — nothing is
+newest `log.md` entries, **T3 Approvals** (`/ops-approvals`) renders the
+approval queue, and **Voice** (`/voice`) turns state transitions into sound. Git markdown stays the only source of truth — nothing is
 copied into the database, and the panels never commit to a default branch.
 
 ```bash
@@ -310,6 +310,15 @@ OPS_OBSIDIAN_VAULTS=luismetzger/metzger-creative-brain=Brain  # optional, comma-
   action is audited as `ops_note_edit_proposed`.
 - One token does both reads and PR creation, so it needs write scope — a known
   coarseness of v1. Auto-refresh on the timeline is floored at 60s.
+
+Voice adds two optional variables. Both are **off by default**, and that is the
+spend gate rather than a convenience:
+
+```bash
+OPS_TTS_OPENAI_KEY=sk-...        # optional; metered cloud voice
+OPS_TTS_ELEVENLABS_KEY=...       # optional; subscription cloud voice
+OPS_TTS_PREFERRED=openai         # optional; which one wins when both are set
+```
 
 #### T3 Approvals (`/ops-approvals`)
 
@@ -341,6 +350,72 @@ would only make a reviewable action *look* supervised.
   byte-for-byte or throws.
 - A malformed request still renders, carrying warnings. A request that silently
   disappears is a request that never gets decided.
+
+#### Voice (`/voice`)
+
+Tier-1 audio feedback (`architecture/02` §Audio feedback design): a short
+distinct cue plus one spoken sentence on the transitions that matter — approval
+requested, blocker, task complete, budget threshold. Read-only; it makes noise
+about state and never changes it.
+
+**Silence is the product.** A server-side poller (`src/lib/ops-event-source.ts`)
+snapshots the ops sources every two minutes and emits only the *edges* between
+snapshots. A queue entry that has been pending all week says nothing today. CI
+that is still red says nothing. An alerter that fires on every poll gets muted,
+and a muted alerter is worse than none because you believe you are covered.
+
+- **The first poll after any restart emits nothing.** Without a baseline every
+  open approval and every red run looks new, so a deploy would announce the
+  entire backlog. `diffSnapshots(null, …)` returns empty and the snapshot is
+  seeded silently. `/api/ops/events/status` reports `seeded`, because "no events
+  because nothing changed" and "no events because we have not looked yet" are
+  different claims and the panel says which one it is making.
+- **A failed source is not an empty source.** If the queue read 502s, the last
+  known list is carried forward rather than treated as empty — otherwise a
+  transient error reads as every approval being decided at once.
+- Cues are **synthesised in the browser** from tone specs in
+  `src/lib/ops-cues.ts`, not shipped as audio files: an mp3 is a fetch that can
+  stall, and a late alarm is not an alarm. It also makes the design reviewable —
+  why `blocker` sounds unresolved and `complete` sounds settled is visible as
+  intervals in a diff, and the panel plays all five side by side so a cue that
+  is indistinguishable from another gets caught before the incident it was meant
+  to warn about.
+- Ops events get **their own bus and their own endpoint**, not the workspace
+  bus. `event-bus.ts` is workspace-scoped and fails closed on an event with no
+  `workspace_id`; ops events are Z0 company state read from git and have no
+  workspace, so stamping one on to reuse the pipe would tell that invariant a
+  lie. `/api/ops/events` is a separate SSE stream, `viewer` role, no action
+  bindings — hearing that an approval is waiting is not being able to grant it.
+- Nothing plays until you click the orb. Browsers block audio before a gesture,
+  so the panel shows itself as muted rather than pretending to be armed.
+- Every spoken line passes `redactLine` — email addresses, long digit runs and
+  key-shaped strings out (rule 9). A wiki leak is bad; a spoken leak is worse,
+  because it leaves the machine as sound in a room that may contain other people.
+
+##### Push-to-talk, not a wake word
+
+Hold `⌥ Space` (or click the orb). "Wake up, Jarvis" was the ask and every route
+to it was blocked for a different reason: Picovoice Porcupine ships a built-in
+"Jarvis" keyword and runs on-device, but its free plan is non-commercial and
+commercial use is $6,000/year; openWakeWord's code is Apache 2.0 while its
+pre-trained models are CC BY-NC-SA and it cannot run in a browser; and the
+browser's own `SpeechRecognition` streams microphone audio to Google, so an
+always-on listener would continuously ship office audio — including client
+calls — to a third party, breaching rules 4 and 9. Training a custom
+openWakeWord model sidesteps the licence and is parked in 2.3 with the rest of
+voice input.
+
+##### The cloud voices ship dark
+
+Two of the three TTS providers bill per character, and recurring third-party
+spend is T3. With no key set, `selectProvider` returns the free browser voice,
+the cockpit still talks, and the bill is zero — so **the key is the switch**, and
+the approval and the capability cannot drift apart. `DAILY_CHAR_CAP` (12,000)
+backs that up: the approved ~$13/month rests on an *estimated* ~135k
+characters/month that nothing has yet measured, and the cap is what stops a
+runaway event loop turning that estimate into an invoice. Past the cap speech
+degrades to the browser voice and cues keep playing — losing the nice voice is
+acceptable, losing the alert is not.
 
 ## Develop
 

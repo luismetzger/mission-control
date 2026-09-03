@@ -12,6 +12,7 @@ import { createElement } from 'react'
 import { ApprovalCardPanel } from '@/components/panels/approval-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
+import { VoiceConsolePanel } from '@/components/panels/voice-console-panel'
 import {
   getOpsComponentByPanelId,
   listOpsComponents,
@@ -49,6 +50,14 @@ if (listOpsComponents().length === 0) {
     // "what is the most consequential thing reachable from here" honestly.
     maxActionTier: 'T3',
     component: ApprovalCardPanel,
+  })
+
+  registerOpsComponent({
+    kind: 'voice-console',
+    panelId: 'voice',
+    title: 'Voice',
+    maxActionTier: 'read-only',
+    component: VoiceConsolePanel,
   })
 }
 
