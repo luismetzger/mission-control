@@ -15,9 +15,9 @@ import { zoneClientSlug, zoneLabel } from '../ops-registry'
 
 const fullEnv = {
   OPS_BRAIN_REPO: 'luismetzger/metzger-creative-brain',
-  OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan',
+  OPS_CLIENT_REPOS: 'example-client=luismetzger/clients-example-client',
   OPS_GITHUB_TOKEN: 'ghp_test',
-  OPS_OBSIDIAN_VAULTS: 'luismetzger/metzger-creative-brain=Brain,luismetzger/clients-kevin-anan=Kevin',
+  OPS_OBSIDIAN_VAULTS: 'luismetzger/metzger-creative-brain=Brain,luismetzger/clients-example-client=ExampleClient',
 }
 
 describe('loadOpsConfig', () => {
@@ -33,15 +33,15 @@ describe('loadOpsConfig', () => {
     })
     expect(config.clientRepos).toEqual([
       {
-        repo: 'luismetzger/clients-kevin-anan',
-        zone: 'z1-kevin-anan',
-        slug: 'kevin-anan',
-        vault: 'Kevin',
+        repo: 'luismetzger/clients-example-client',
+        zone: 'z1-example-client',
+        slug: 'example-client',
+        vault: 'ExampleClient',
       },
     ])
     expect(config.repos.map(r => r.repo)).toEqual([
       'luismetzger/metzger-creative-brain',
-      'luismetzger/clients-kevin-anan',
+      'luismetzger/clients-example-client',
     ])
   })
 
@@ -92,11 +92,11 @@ describe('zone derivation', () => {
 
   it('derives z0 for the brain repo and z1-<slug> for a client repo', () => {
     expect(deriveZone(config, 'luismetzger/metzger-creative-brain')).toBe('z0')
-    expect(deriveZone(config, 'luismetzger/clients-kevin-anan')).toBe('z1-kevin-anan')
+    expect(deriveZone(config, 'luismetzger/clients-example-client')).toBe('z1-example-client')
   })
 
   it('is case-insensitive on the repo name', () => {
-    expect(deriveZone(config, 'LuisMetzger/Clients-Kevin-Anan')).toBe('z1-kevin-anan')
+    expect(deriveZone(config, 'LuisMetzger/Clients-Example-Client')).toBe('z1-example-client')
   })
 
   it('returns unknown — never z0 — for a repo outside the configured set', () => {
@@ -107,10 +107,10 @@ describe('zone derivation', () => {
 
   it('labels zones for the badge', () => {
     expect(zoneLabel('z0')).toBe('Z0 · company')
-    expect(zoneLabel('z1-kevin-anan')).toBe('Z1 · kevin-anan')
+    expect(zoneLabel('z1-example-client')).toBe('Z1 · example-client')
     expect(zoneLabel('p')).toBe('P · public')
     expect(zoneLabel('unknown')).toBe('zone unknown')
-    expect(zoneClientSlug('z1-kevin-anan')).toBe('kevin-anan')
+    expect(zoneClientSlug('z1-example-client')).toBe('example-client')
     expect(zoneClientSlug('z0')).toBeNull()
   })
 })
@@ -127,7 +127,7 @@ describe('obsidianUri', () => {
 
   it('returns null when no vault is configured, so the link can be hidden', () => {
     const noVault = loadOpsConfig({ ...fullEnv, OPS_OBSIDIAN_VAULTS: '' })
-    const ref = findRepoRef(noVault, 'luismetzger/clients-kevin-anan')
+    const ref = findRepoRef(noVault, 'luismetzger/clients-example-client')
     expect(ref?.vault).toBeNull()
     expect(obsidianUri(ref, 'wiki/page.md')).toBeNull()
     expect(obsidianUri(null, 'wiki/page.md')).toBeNull()

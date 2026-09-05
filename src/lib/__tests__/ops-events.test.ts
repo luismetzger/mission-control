@@ -181,10 +181,10 @@ describe('CI transitions', () => {
 
   it('carries the run zone rather than assuming z0', () => {
     const events = diffSnapshots(
-      snapshot({ runs: [run({ zone: 'z1-kevin-anan' })] }),
-      snapshot({ runs: [run({ zone: 'z1-kevin-anan', conclusion: 'failure' })] }),
+      snapshot({ runs: [run({ zone: 'z1-example-client' })] }),
+      snapshot({ runs: [run({ zone: 'z1-example-client', conclusion: 'failure' })] }),
     )
-    expect(events[0].zone).toBe('z1-kevin-anan')
+    expect(events[0].zone).toBe('z1-example-client')
   })
 })
 
@@ -233,7 +233,7 @@ describe('budget thresholds', () => {
 
 describe('redaction', () => {
   it('strips email addresses', () => {
-    expect(redactLine('ping kevin.anan@example.com about it')).not.toContain('@example.com')
+    expect(redactLine('ping dana.reyes@example.com about it')).not.toContain('@example.com')
   })
 
   it('strips long digit runs like a QuickBooks customer id', () => {
@@ -256,9 +256,9 @@ describe('redaction', () => {
   it('applies to spoken lines produced by the differ, not just when called directly', () => {
     const events = diffSnapshots(
       snapshot(),
-      snapshot({ approvals: [approval({ title: 'invoice for kevin@example.com' })] }),
+      snapshot({ approvals: [approval({ title: 'invoice for dana.reyes@example.com' })] }),
     )
-    expect(events[0].line).not.toContain('kevin@example.com')
+    expect(events[0].line).not.toContain('dana.reyes@example.com')
   })
 
   it('caps a pathological title so one line cannot monopolise the voice', () => {
@@ -434,13 +434,13 @@ describe('spoken digest', () => {
         ...empty,
         approvals: [{ title: 'Ops token', daysLeft: -2 }],
         failingRuns: [{ repo: 'owner/brain', workflow: 'Wiki gates' }],
-        meetings: [{ title: 'Kevin review', startsAt: '7:30 AM' }],
+        meetings: [{ title: 'Client review', startsAt: '7:30 AM' }],
       },
       T,
     )
     const expiredAt = digest.text.indexOf('expired')
     const ciAt = digest.text.indexOf('Wiki gates')
-    const meetingAt = digest.text.indexOf('Kevin review')
+    const meetingAt = digest.text.indexOf('Client review')
     expect(expiredAt).toBeGreaterThan(-1)
     expect(expiredAt).toBeLessThan(ciAt)
     expect(ciAt).toBeLessThan(meetingAt)
@@ -497,10 +497,10 @@ describe('spoken digest', () => {
 
   it('redacts the digest as well as individual cues', () => {
     const digest = composeDigest(
-      { ...empty, clientDeltas: [{ client: 'Kevin', summary: 'emailed kevin@example.com' }] },
+      { ...empty, clientDeltas: [{ client: 'ExampleClient', summary: 'emailed dana.reyes@example.com' }] },
       T,
     )
-    expect(digest.text).not.toContain('kevin@example.com')
+    expect(digest.text).not.toContain('dana.reyes@example.com')
   })
 
   it('says the calendar is empty rather than omitting it', () => {

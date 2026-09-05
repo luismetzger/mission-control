@@ -288,7 +288,7 @@ copied into the database, and the panels never commit to a default branch.
 
 ```bash
 OPS_BRAIN_REPO=luismetzger/metzger-creative-brain          # zone z0 (default if unset)
-OPS_CLIENT_REPOS=kevin-anan=luismetzger/clients-kevin-anan # comma-separated slug=owner/repo, zone z1-<slug>
+OPS_CLIENT_REPOS=example-client=luismetzger/clients-example-client # comma-separated slug=owner/repo, zone z1-<slug>
 OPS_GITHUB_TOKEN=ghp_...                                   # repo reads + PR creation
 OPS_OBSIDIAN_VAULTS=luismetzger/metzger-creative-brain=Brain  # optional, comma-separated owner/repo=VaultName
 ```

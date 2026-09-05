@@ -86,7 +86,7 @@ describe('verifyAlbOidcToken', () => {
   })
 
   it('rejects an email that is not on the allowlist', async () => {
-    const token = mintToken({ payload: { email: 'stranger@gmail.com' } })
+    const token = mintToken({ payload: { email: 'stranger@example.net' } })
     const result = await verifyAlbOidcToken(token, baseOpts())
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason).toContain('not in allowlist')

@@ -25,9 +25,9 @@ const brain: OpsRepoRef = {
   vault: 'Brain',
 }
 const client: OpsRepoRef = {
-  repo: 'luismetzger/clients-kevin-anan',
-  zone: 'z1-kevin-anan',
-  slug: 'kevin-anan',
+  repo: 'luismetzger/clients-example-client',
+  zone: 'z1-example-client',
+  slug: 'example-client',
   vault: null,
 }
 
@@ -210,7 +210,7 @@ describe('proposeEdit', () => {
         method: init?.method ?? 'GET',
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
       })
-      if (url.endsWith('/repos/luismetzger/clients-kevin-anan')) {
+      if (url.endsWith('/repos/luismetzger/clients-example-client')) {
         return jsonResponse({ default_branch: 'main' })
       }
       if (url.includes('/git/ref/heads/')) return jsonResponse({ object: { sha: 'basesha' } })
@@ -263,7 +263,7 @@ describe('proposeEdit', () => {
       title: 'cockpit: edit wiki/page.md',
     })
     expect(prCall?.body.body).toContain('cockpit')
-    expect(prCall?.body.body).toContain('z1-kevin-anan')
+    expect(prCall?.body.body).toContain('z1-example-client')
 
     // Exactly one PUT, and it is the content write — nothing else mutates.
     expect(calls.filter(c => c.method === 'PUT')).toHaveLength(1)
@@ -286,7 +286,7 @@ describe('proposeEdit', () => {
 
   it('fails loudly when the base head cannot be resolved', async () => {
     const fetchImpl = vi.fn(async (url: string) => {
-      if (url.endsWith('/repos/luismetzger/clients-kevin-anan')) {
+      if (url.endsWith('/repos/luismetzger/clients-example-client')) {
         return jsonResponse({ default_branch: 'main' })
       }
       return jsonResponse({ object: {} })
