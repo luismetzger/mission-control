@@ -10,6 +10,18 @@ export interface DashboardWidget {
 
 export const WIDGET_CATALOG: DashboardWidget[] = [
   {
+    // The three KPI cards (spend, AR, T3 queue) rendered as one row. Owns
+    // its own data (each card fetches from /api/ops/kpi/:kind), so it is
+    // registered `full`-width and available in both dashboard modes.
+    id: 'cockpit-telemetry-strip',
+    label: 'Cockpit Telemetry',
+    description: 'AI spend MTD, AR outstanding, and T3 queue depth — each with a 30-day trend',
+    category: 'metrics',
+    modes: ['local', 'full'],
+    defaultSize: 'full',
+    component: 'CockpitTelemetryStripWidget',
+  },
+  {
     id: 'briefing-bar',
     label: 'Briefing Bar',
     description: 'At-a-glance operational summary — what needs attention now',
@@ -146,8 +158,14 @@ export const WIDGET_CATALOG: DashboardWidget[] = [
   },
 ]
 
+// The telemetry strip sits directly under the briefing bar in both modes:
+// the briefing tells you what needs attention right now, and the strip tells
+// you which of the three slow-moving business KPIs is drifting. Same position
+// on both layouts on purpose — there is no reason spend/AR/queue should live
+// somewhere different on a gateway vs a local install.
 export const LOCAL_DEFAULT_LAYOUT = [
   'briefing-bar',
+  'cockpit-telemetry-strip',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',
@@ -157,6 +175,7 @@ export const LOCAL_DEFAULT_LAYOUT = [
 
 export const GATEWAY_DEFAULT_LAYOUT = [
   'briefing-bar',
+  'cockpit-telemetry-strip',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',
