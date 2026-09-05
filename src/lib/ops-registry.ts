@@ -87,6 +87,27 @@ export interface VoiceConsoleProps {
   focusEventId?: string
 }
 
+/**
+ * Props contract for the KPI card family (`kpi-spend`, `kpi-ar`, `kpi-queue`).
+ *
+ * Three kinds, one component. The choice is deliberate: `kind` is the contract
+ * (one action tier, one data source, one drill-in target), so three trend cards
+ * that differ in all three of those things are three kinds — not one card with
+ * a runtime prop that picks the source. That would let a `read-only` card
+ * accidentally register with a `T3` action just by flipping a string; keeping
+ * the source in the kind means the tier and the target follow it in the
+ * registry, and typos become type errors.
+ *
+ * The React component itself is shared, because the *rendering* is identical:
+ * label, big number, sparkline, badge, drill-in link. Only the data adapter
+ * and the drill-in href differ, and those are decided from `kind` on the
+ * server, not from props here.
+ */
+export interface KpiCardProps {
+  /** Optional deep-link into a specific point on the trend line. Reserved. */
+  focusDate?: string
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
@@ -101,6 +122,23 @@ export interface OpsComponentPropsByKind {
   // the cockpit has no write access to a default branch, so merging is the
   // decision. Voice read-back is 2.2c and lands on this same kind.
   'approval-card': ApprovalCardProps
+  // KPI/status cards for the cockpit telemetry strip (architecture/03 §164,
+  // build-plan 2.2d). Three kinds — one per underlying series — so the tier
+  // and drill-in target live in the registry rather than in a component prop:
+  //   - `kpi-spend`  read-only view of AI spend MTD against the monthly
+  //                  envelope; drills into the T3 approval queue for the
+  //                  envelope itself. The card renders read-only; the action
+  //                  is in the queue it points at.
+  //   - `kpi-ar`     read-only view of AR total across all aging buckets from
+  //                  the weekly Bookkeeper snapshot. No drill-in yet (no AR
+  //                  panel exists), and none is faked — the card links out to
+  //                  the source file in the brain repo instead.
+  //   - `kpi-queue`  read-only view of the T3 queue depth over time. Drills
+  //                  into the existing approval-card panel, which is where a
+  //                  decision is actually made.
+  'kpi-spend': KpiCardProps
+  'kpi-ar': KpiCardProps
+  'kpi-queue': KpiCardProps
 }
 
 export type ComponentKind = keyof OpsComponentPropsByKind

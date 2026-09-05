@@ -10,15 +10,31 @@
 
 import { createElement } from 'react'
 import { ApprovalCardPanel } from '@/components/panels/approval-card-panel'
+import { KpiCardPanel } from '@/components/panels/kpi-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
 import { VoiceConsolePanel } from '@/components/panels/voice-console-panel'
+import type { KpiCardKind } from '@/lib/ops-kpi'
 import {
   getOpsComponentByPanelId,
   listOpsComponents,
   registerOpsComponent,
   type OpsComponentDef,
 } from '@/lib/ops-registry'
+
+/**
+ * Wrap the shared KPI card so each registered kind gets its own component
+ * reference with the kind bound in. `renderOpsPanel` passes zero props by
+ * design (every kind derives its data from the API); binding the kind here is
+ * the smallest change that keeps that contract while letting one component
+ * serve three kinds. If we later add a fourth KPI kind this stays a one-line
+ * change here plus a registry entry below.
+ */
+function bindKpi(kind: KpiCardKind) {
+  const Bound = () => createElement(KpiCardPanel, { kind })
+  Bound.displayName = `KpiCardPanel(${kind})`
+  return Bound
+}
 
 if (listOpsComponents().length === 0) {
   registerOpsComponent({
@@ -58,6 +74,35 @@ if (listOpsComponents().length === 0) {
     title: 'Voice',
     maxActionTier: 'read-only',
     component: VoiceConsolePanel,
+  })
+
+  // KPI/status cards (build-plan 2.2d). Three kinds share KpiCardPanel with
+  // the kind bound in at registration time — see bindKpi above.
+  registerOpsComponent({
+    kind: 'kpi-spend',
+    panelId: 'kpi-spend',
+    title: 'AI spend MTD',
+    // Read-only. The card drills into the T3 approval-card panel, which is
+    // where a spend decision actually happens — recording T3 here would
+    // overstate what the card itself can do.
+    maxActionTier: 'read-only',
+    component: bindKpi('kpi-spend'),
+  })
+
+  registerOpsComponent({
+    kind: 'kpi-ar',
+    panelId: 'kpi-ar',
+    title: 'AR outstanding',
+    maxActionTier: 'read-only',
+    component: bindKpi('kpi-ar'),
+  })
+
+  registerOpsComponent({
+    kind: 'kpi-queue',
+    panelId: 'kpi-queue',
+    title: 'T3 queue depth',
+    maxActionTier: 'read-only',
+    component: bindKpi('kpi-queue'),
   })
 }
 
