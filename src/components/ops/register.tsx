@@ -14,9 +14,11 @@ import { ChartPanel } from '@/components/panels/chart-panel'
 import { KpiCardPanel } from '@/components/panels/kpi-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
+import { TablePanel } from '@/components/panels/table-panel'
 import { VoiceConsolePanel } from '@/components/panels/voice-console-panel'
 import type { ChartSeriesId } from '@/lib/ops-chart'
 import type { KpiCardKind } from '@/lib/ops-kpi'
+import type { TableId } from '@/lib/ops-table'
 import {
   getOpsComponentByPanelId,
   listOpsComponents,
@@ -50,6 +52,19 @@ function bindKpi(kind: KpiCardKind) {
 function bindChart(seriesId: ChartSeriesId) {
   const Bound = () => createElement(ChartPanel, { seriesId })
   Bound.displayName = `ChartPanel(${seriesId})`
+  return Bound
+}
+
+/**
+ * Bind a table into the shared TablePanel component. Same mechanism as
+ * `bindChart` and for the same reason: one kind, one shared component, the
+ * `tableId` baked in at registration time so `renderOpsPanel` can keep
+ * passing zero props. A future second table adds a `TableSnapshotDeps`
+ * fetcher plus one registration line here — no new kind, no new route.
+ */
+function bindTable(tableId: TableId) {
+  const Bound = () => createElement(TablePanel, { tableId })
+  Bound.displayName = `TablePanel(${tableId})`
   return Bound
 }
 
@@ -137,6 +152,24 @@ if (listOpsComponents().length === 0) {
     // do — it renders numbers, it decides nothing.
     maxActionTier: 'read-only',
     component: bindChart('ai-burn-vs-envelope'),
+  })
+
+  // Table panels (build-plan 2.2h). One kind (`table-panel`), one table
+  // today, one panelId per table. The kind is the reusable shell; the
+  // panelId identifies which table the router hands off. Adding a second
+  // table is: (a) a `TableId` in ops-table.ts, (b) a fetcher in
+  // ops-table-sources.ts, (c) one line here. No new kind, no new route,
+  // no new component.
+  registerOpsComponent({
+    kind: 'table-panel',
+    panelId: 'table-ar-aging',
+    title: 'AR aging',
+    // Read-only. Row actions on AR would be chase emails, which don't fit
+    // the T3-via-PR model; when a table has actions PRs *can* represent,
+    // those live in a gated-action extension that opens a PR through the
+    // approval-card panel. See ops-table.ts for the full reasoning.
+    maxActionTier: 'read-only',
+    component: bindTable('ar-aging'),
   })
 }
 
