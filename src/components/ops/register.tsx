@@ -11,12 +11,14 @@
 import { createElement } from 'react'
 import { ApprovalCardPanel } from '@/components/panels/approval-card-panel'
 import { ChartPanel } from '@/components/panels/chart-panel'
+import { DiffPanel } from '@/components/panels/diff-panel'
 import { KpiCardPanel } from '@/components/panels/kpi-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
 import { TablePanel } from '@/components/panels/table-panel'
 import { VoiceConsolePanel } from '@/components/panels/voice-console-panel'
 import type { ChartSeriesId } from '@/lib/ops-chart'
+import type { DiffId } from '@/lib/ops-diff'
 import type { KpiCardKind } from '@/lib/ops-kpi'
 import type { TableId } from '@/lib/ops-table'
 import {
@@ -65,6 +67,19 @@ function bindChart(seriesId: ChartSeriesId) {
 function bindTable(tableId: TableId) {
   const Bound = () => createElement(TablePanel, { tableId })
   Bound.displayName = `TablePanel(${tableId})`
+  return Bound
+}
+
+/**
+ * Bind a diff into the shared DiffPanel component. Same mechanism as
+ * `bindTable`: one kind, one shared component, the `diffId` baked in at
+ * registration time so `renderOpsPanel` keeps passing zero props. A second
+ * diff adds a `DiffSnapshotDeps` case in ops-diff-sources.ts plus one line
+ * here — no new kind, no new route.
+ */
+function bindDiff(diffId: DiffId) {
+  const Bound = () => createElement(DiffPanel, { diffId })
+  Bound.displayName = `DiffPanel(${diffId})`
   return Bound
 }
 
@@ -170,6 +185,24 @@ if (listOpsComponents().length === 0) {
     // approval-card panel. See ops-table.ts for the full reasoning.
     maxActionTier: 'read-only',
     component: bindTable('ar-aging'),
+  })
+
+  // Diff panels (build-plan 2.2g). One kind (`diff-panel`), one diff today,
+  // one panelId per diff. The kind is the reusable shell; the panelId
+  // identifies which diff the router hands off. Not on the default
+  // dashboard — proposal PRs are episodic (the retro job in 3.2 will be
+  // the first source), so this is a drill-in surface reached from the
+  // panel router, not a strip metric that has to render every day.
+  registerOpsComponent({
+    kind: 'diff-panel',
+    panelId: 'diff-retro-proposals',
+    title: 'Retro proposals',
+    // Read-only. Merging is the approval and the cockpit has no write access
+    // to a default branch; every action link in the panel goes to GitHub,
+    // where a human types the merge. Recording T3 here would overstate what
+    // the panel itself can do — it renders the diff, it decides nothing.
+    maxActionTier: 'read-only',
+    component: bindDiff('retro-proposals'),
   })
 }
 

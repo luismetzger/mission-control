@@ -137,6 +137,17 @@ export interface TablePanelProps {
   tableId: import('@/lib/ops-table').TableId
 }
 
+/**
+ * Props for the reusable diff panel (build-plan 2.2g). Kind is `diff-panel`
+ * — the same shape decision as chart and table: one kind, many diffs, the
+ * `diffId` a prop. Every diff has the same contract: read-only, one deep
+ * link to the PR on GitHub, no in-panel merge. The retro job (3.2) will be
+ * the first source of PRs that land here.
+ */
+export interface DiffPanelProps {
+  diffId: import('@/lib/ops-diff').DiffId
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
@@ -181,6 +192,15 @@ export interface OpsComponentPropsByKind {
   // in v1). Read-only: row-level actions that would fit the T3 model land in
   // a follow-up when a table has actions PRs can represent.
   'table-panel': TablePanelProps
+  // Reusable diff viewer (architecture/04 §2, build-plan 2.2g). One kind,
+  // many diffs — the diffId is a prop for the same reason as chart/table:
+  // every diff has the same shape (list of PRs, per-file unified patches,
+  // one deep link out to GitHub). Read-only: merging is the approval and
+  // the cockpit has no write access to a default branch, so there is no
+  // in-panel merge button to build. This is the review surface build-plan
+  // 3.2's retro job needs before it can propose skill/policy/template
+  // changes.
+  'diff-panel': DiffPanelProps
 }
 
 export type ComponentKind = keyof OpsComponentPropsByKind
