@@ -97,3 +97,41 @@ describe('AI burn chart widget catalog registration (build-plan 2.2e)', () => {
     expect(getDefaultLayout('full')).toContain(CHART_ID)
   })
 })
+
+describe('AR aging table widget catalog registration (build-plan 2.2h)', () => {
+  const TABLE_ID = 'ar-aging-table'
+  const CHART_ID = 'ai-burn-chart'
+
+  it('is registered as a medium-width widget in both modes', () => {
+    const w = getWidgetById(TABLE_ID)
+    expect(w, 'ar-aging-table must be in WIDGET_CATALOG').toBeDefined()
+    // Medium width — the table pairs visually with the burn chart at md/md
+    // in the grid. Full width would push the chart onto its own row and
+    // break the intended "chart + table" companion layout.
+    expect(w?.defaultSize).toBe('md')
+    expect(w?.modes).toEqual(expect.arrayContaining(['local', 'full']))
+  })
+
+  it.each([
+    ['local', LOCAL_DEFAULT_LAYOUT],
+    ['full', GATEWAY_DEFAULT_LAYOUT],
+  ] as const)('sits directly after the burn chart in the %s default layout', (_mode, layout) => {
+    // Adjacency is the design: chart expands the strip's spend card into a
+    // trajectory; table expands the strip's AR card into bucket detail.
+    // A reorder that separates them is a design change, not a cleanup.
+    const chartIdx = layout.indexOf(CHART_ID)
+    const tableIdx = layout.indexOf(TABLE_ID)
+    expect(chartIdx).toBeGreaterThanOrEqual(0)
+    expect(tableIdx).toBe(chartIdx + 1)
+  })
+
+  it('is returned by getAvailableWidgets for both modes', () => {
+    expect(getAvailableWidgets('local').some(w => w.id === TABLE_ID)).toBe(true)
+    expect(getAvailableWidgets('full').some(w => w.id === TABLE_ID)).toBe(true)
+  })
+
+  it('appears in getDefaultLayout for both modes', () => {
+    expect(getDefaultLayout('local')).toContain(TABLE_ID)
+    expect(getDefaultLayout('full')).toContain(TABLE_ID)
+  })
+})

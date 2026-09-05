@@ -10,6 +10,19 @@ export interface DashboardWidget {
 
 export const WIDGET_CATALOG: DashboardWidget[] = [
   {
+    // The reusable table panel, first table being AR aging (build-plan
+    // 2.2h). Medium-width so it sits alongside the burn chart in the
+    // grid — they are the two "expansion" panels beneath the telemetry
+    // strip: chart for spend trajectory, table for AR bucket detail.
+    id: 'ar-aging-table',
+    label: 'AR Aging Table',
+    description: 'Accounts receivable by aging bucket — latest weekly snapshot from the Bookkeeper brief',
+    category: 'metrics',
+    modes: ['local', 'full'],
+    defaultSize: 'md',
+    component: 'ArAgingTableWidget',
+  },
+  {
     // The reusable time-series chart, first series being AI burn vs the
     // monthly envelope (build-plan 2.2e). Registered as a medium-width
     // widget so it can sit next to a companion in the grid; `md` is 4 of
@@ -185,6 +198,12 @@ export const LOCAL_DEFAULT_LAYOUT = [
   // or a slope. Read together they answer both "where am I now" and
   // "where am I headed."
   'ai-burn-chart',
+  // AR aging table sits next to the burn chart — both are the "expansion"
+  // panels for the telemetry strip's single-number cards. Chart expands
+  // spend into a trajectory; table expands AR into bucket detail (how much
+  // is current, how much is overdue by how much). The strip answers "how
+  // bad"; these two answer "how, and where."
+  'ar-aging-table',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',
@@ -196,6 +215,7 @@ export const GATEWAY_DEFAULT_LAYOUT = [
   'briefing-bar',
   'cockpit-telemetry-strip',
   'ai-burn-chart',
+  'ar-aging-table',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',

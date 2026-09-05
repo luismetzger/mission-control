@@ -121,6 +121,22 @@ export interface ChartPanelProps {
   seriesId: import('@/lib/ops-chart').ChartSeriesId
 }
 
+/**
+ * Props for the reusable table panel (build-plan 2.2h). Kind is `table-panel`
+ * — the same shape decision as the chart panel: one kind, many tables. See
+ * `src/lib/ops-table.ts` for why: every checklist item under 2.2h (invoices,
+ * AR aging, leads, backlog) has the same fixed-column structure, no dynamic
+ * pivoting, no row actions in v1 — baking a per-table kind would encode
+ * differences the tables don't actually have.
+ *
+ * Row-level actions are deferred (see `ops-table.ts` for the reasoning: no
+ * table today has actions the T3 model represents, so wiring the affordance
+ * now would encode the wrong shape).
+ */
+export interface TablePanelProps {
+  tableId: import('@/lib/ops-table').TableId
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
@@ -158,6 +174,13 @@ export interface OpsComponentPropsByKind {
   // ack-of-threshold happens in the T3 approval-card panel a series may link
   // out to, never inline on the chart.
   'chart-panel': ChartPanelProps
+  // Reusable tabular card (architecture/04 §2, build-plan 2.2h). One kind,
+  // many tables — the tableId is a prop, not a kind, for the same reason as
+  // chart: every table sub-item in 2.2h (invoices, AR aging, leads, backlog)
+  // has the same shape (fixed columns, optional totals row, no row actions
+  // in v1). Read-only: row-level actions that would fit the T3 model land in
+  // a follow-up when a table has actions PRs can represent.
+  'table-panel': TablePanelProps
 }
 
 export type ComponentKind = keyof OpsComponentPropsByKind
@@ -179,7 +202,12 @@ export interface OpsComponentDef<K extends ComponentKind = ComponentKind> {
 const _components = new Map<ComponentKind, OpsComponentDef>()
 
 export function registerOpsComponent<K extends ComponentKind>(def: OpsComponentDef<K>): void {
-  _components.set(def.kind, def as OpsComponentDef)
+  // The map is keyed by kind and values are heterogeneous — storage is
+  // widened via `unknown`, and `getOpsComponent<K>` narrows it back on
+  // read. A direct `def as OpsComponentDef` cast worked when the props
+  // union was small enough for TS's variance check to accept it; each
+  // new kind widens that union until the check refuses.
+  _components.set(def.kind, def as unknown as OpsComponentDef)
 }
 
 export function getOpsComponent<K extends ComponentKind>(kind: K): OpsComponentDef<K> | undefined {
