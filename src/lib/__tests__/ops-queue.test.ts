@@ -29,9 +29,9 @@ const brain: OpsRepoRef = {
   vault: null,
 }
 const client: OpsRepoRef = {
-  repo: 'luismetzger/clients-kevin-anan',
-  zone: 'z1-kevin-anan',
-  slug: 'kevin-anan',
+  repo: 'luismetzger/clients-example-client',
+  zone: 'z1-example-client',
+  slug: 'example-client',
   vault: null,
 }
 

@@ -17,9 +17,9 @@ import type { OpsRepoRef } from '../ops-config'
 
 const brain: OpsRepoRef = { repo: 'luismetzger/metzger-creative-brain', zone: 'z0', slug: null, vault: null }
 const client: OpsRepoRef = {
-  repo: 'luismetzger/clients-kevin-anan',
-  zone: 'z1-kevin-anan',
-  slug: 'kevin-anan',
+  repo: 'luismetzger/clients-example-client',
+  zone: 'z1-example-client',
+  slug: 'example-client',
   vault: null,
 }
 
@@ -128,7 +128,7 @@ describe('fetchAutomationPulls', () => {
     )
     const pulls = await fetchAutomationPulls(client, { token: 't', fetchImpl, nowMs: NOW })
     expect(pulls.map(p => p.number)).toEqual([10, 11])
-    expect(pulls[0]).toMatchObject({ ageDays: 20, stalled: true, zone: 'z1-kevin-anan' })
+    expect(pulls[0]).toMatchObject({ ageDays: 20, stalled: true, zone: 'z1-example-client' })
     expect(pulls[1]).toMatchObject({ ageDays: 1, stalled: false })
     expect(STALE_PR_DAYS).toBe(7)
   })
@@ -138,7 +138,7 @@ describe('assembleTimeline', () => {
   function fetchImplFor(opts: { logFails?: boolean } = {}) {
     return vi.fn(async (url: string) => {
       if (url.includes('/actions/runs')) {
-        const failing = url.includes('clients-kevin-anan')
+        const failing = url.includes('clients-example-client')
         return jsonResponse({
           workflow_runs: [
             {
@@ -166,7 +166,7 @@ describe('assembleTimeline', () => {
         ])
       }
       if (url.includes('/contents/log.md')) {
-        if (opts.logFails && url.includes('clients-kevin-anan')) {
+        if (opts.logFails && url.includes('clients-example-client')) {
           return jsonResponse({ message: 'Not Found' }, 404)
         }
         return jsonResponse({
@@ -186,10 +186,10 @@ describe('assembleTimeline', () => {
     })
 
     expect(timeline.errors).toEqual([])
-    expect(timeline.repos.map(r => r.zone)).toEqual(['z0', 'z1-kevin-anan'])
+    expect(timeline.repos.map(r => r.zone)).toEqual(['z0', 'z1-example-client'])
 
     // Failed client run sorts first (newest) and is flagged.
-    expect(timeline.runs[0]).toMatchObject({ name: 'client compile', failed: true, zone: 'z1-kevin-anan' })
+    expect(timeline.runs[0]).toMatchObject({ name: 'client compile', failed: true, zone: 'z1-example-client' })
     expect(timeline.runs.filter(r => r.failed)).toHaveLength(1)
 
     // Both repos contribute one 15-day-old compile PR, over the 7-day SLA.
@@ -198,7 +198,7 @@ describe('assembleTimeline', () => {
 
     expect(timeline.logEntries).toHaveLength(6)
     expect(timeline.logEntries[0].date).toBe('2026-08-30')
-    expect(new Set(timeline.logEntries.map(e => e.zone))).toEqual(new Set(['z0', 'z1-kevin-anan']))
+    expect(new Set(timeline.logEntries.map(e => e.zone))).toEqual(new Set(['z0', 'z1-example-client']))
     expect(timeline.generatedAt).toBe('2026-08-30T00:00:00.000Z')
   })
 
@@ -208,7 +208,7 @@ describe('assembleTimeline', () => {
       fetchImpl: fetchImplFor({ logFails: true }),
       nowMs: NOW,
     })
-    expect(timeline.errors).toEqual(['luismetzger/clients-kevin-anan log.md: GitHub API 404'])
+    expect(timeline.errors).toEqual(['luismetzger/clients-example-client log.md: GitHub API 404'])
     expect(timeline.runs).toHaveLength(2)
     expect(timeline.logEntries).toHaveLength(3)
   })

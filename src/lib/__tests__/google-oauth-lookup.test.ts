@@ -59,14 +59,14 @@ describe('Google OAuth user lookup', () => {
     db = new Database(':memory:')
     createSchema(db)
 
-    // Local admin exists with email alice@corp.com
+    // Local admin exists with email alice@example.com
     db.prepare(`
       INSERT INTO users (username, display_name, role, provider, email, is_approved)
-      VALUES ('alice', 'Alice', 'admin', 'local', 'alice@corp.com', 1)
+      VALUES ('alice', 'Alice', 'admin', 'local', 'alice@example.com', 1)
     `).run()
 
-    // Attacker signs in with Google using alice@corp.com
-    const row = db.prepare(LOOKUP_QUERY).get('attacker-google-sub', 'alice@corp.com')
+    // Attacker signs in with Google using alice@example.com
+    const row = db.prepare(LOOKUP_QUERY).get('attacker-google-sub', 'alice@example.com')
     expect(row).toBeUndefined()
   })
 
@@ -76,10 +76,10 @@ describe('Google OAuth user lookup', () => {
 
     db.prepare(`
       INSERT INTO users (username, display_name, provider, provider_user_id, email, is_approved)
-      VALUES ('bob', 'Bob', 'google', 'google-sub-123', 'bob@corp.com', 1)
+      VALUES ('bob', 'Bob', 'google', 'google-sub-123', 'bob@example.com', 1)
     `).run()
 
-    const row = db.prepare(LOOKUP_QUERY).get('google-sub-123', 'bob@corp.com') as any
+    const row = db.prepare(LOOKUP_QUERY).get('google-sub-123', 'bob@example.com') as any
     expect(row).not.toBeNull()
     expect(row.username).toBe('bob')
   })
@@ -90,11 +90,11 @@ describe('Google OAuth user lookup', () => {
 
     db.prepare(`
       INSERT INTO users (username, display_name, provider, provider_user_id, email, is_approved)
-      VALUES ('carol', 'Carol', 'google', 'old-sub', 'carol@corp.com', 1)
+      VALUES ('carol', 'Carol', 'google', 'old-sub', 'carol@example.com', 1)
     `).run()
 
     // Google sub changed but email matches — should still find the Google user
-    const row = db.prepare(LOOKUP_QUERY).get('new-sub', 'carol@corp.com') as any
+    const row = db.prepare(LOOKUP_QUERY).get('new-sub', 'carol@example.com') as any
     expect(row).not.toBeNull()
     expect(row.username).toBe('carol')
   })
@@ -105,10 +105,10 @@ describe('Google OAuth user lookup', () => {
 
     db.prepare(`
       INSERT INTO users (username, display_name, provider, email, is_approved)
-      VALUES ('dan', 'Dan', 'proxy', 'dan@corp.com', 1)
+      VALUES ('dan', 'Dan', 'proxy', 'dan@example.com', 1)
     `).run()
 
-    const row = db.prepare(LOOKUP_QUERY).get('some-google-sub', 'dan@corp.com')
+    const row = db.prepare(LOOKUP_QUERY).get('some-google-sub', 'dan@example.com')
     expect(row).toBeUndefined()
   })
 
@@ -126,11 +126,11 @@ describe('Google OAuth user lookup', () => {
 
     db.prepare(`
       INSERT INTO users (username, display_name, provider, provider_user_id, email, is_approved)
-      VALUES ('eve', 'Eve', 'google', 'eve-sub', 'eve@corp.com', 0)
+      VALUES ('eve', 'Eve', 'google', 'eve-sub', 'eve@example.com', 0)
     `).run()
 
     // Query returns the row, but the route checks is_approved — verify the row has is_approved=0
-    const row = db.prepare(LOOKUP_QUERY).get('eve-sub', 'eve@corp.com') as any
+    const row = db.prepare(LOOKUP_QUERY).get('eve-sub', 'eve@example.com') as any
     expect(row).not.toBeNull()
     expect(row.is_approved).toBe(0)
   })
@@ -142,16 +142,16 @@ describe('Google OAuth user lookup', () => {
     // Local user first (lower id)
     db.prepare(`
       INSERT INTO users (username, display_name, provider, email, is_approved)
-      VALUES ('alice-local', 'Alice Local', 'local', 'alice@corp.com', 1)
+      VALUES ('alice-local', 'Alice Local', 'local', 'alice@example.com', 1)
     `).run()
 
     // Google user second (higher id)
     db.prepare(`
       INSERT INTO users (username, display_name, provider, provider_user_id, email, is_approved)
-      VALUES ('alice-google', 'Alice Google', 'google', 'alice-sub', 'alice@corp.com', 1)
+      VALUES ('alice-google', 'Alice Google', 'google', 'alice-sub', 'alice@example.com', 1)
     `).run()
 
-    const row = db.prepare(LOOKUP_QUERY).get('alice-sub', 'alice@corp.com') as any
+    const row = db.prepare(LOOKUP_QUERY).get('alice-sub', 'alice@example.com') as any
     expect(row).not.toBeNull()
     expect(row.provider).toBe('google')
     expect(row.username).toBe('alice-google')

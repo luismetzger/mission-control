@@ -28,7 +28,7 @@ const viewer = { user: { id: 7, username: 'luis', role: 'viewer', workspace_id: 
 
 const CONFIGURED_ENV = {
   OPS_BRAIN_REPO: 'luismetzger/metzger-creative-brain',
-  OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan',
+  OPS_CLIENT_REPOS: 'example-client=luismetzger/clients-example-client',
   OPS_GITHUB_TOKEN: 'ghp_test',
 }
 

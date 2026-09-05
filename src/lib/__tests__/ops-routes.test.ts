@@ -42,7 +42,7 @@ const operator = { user: { id: 7, username: 'luis', role: 'operator', workspace_
 
 const CONFIGURED_ENV = {
   OPS_BRAIN_REPO: 'luismetzger/metzger-creative-brain',
-  OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan',
+  OPS_CLIENT_REPOS: 'example-client=luismetzger/clients-example-client',
   OPS_GITHUB_TOKEN: 'ghp_test',
 }
 
@@ -140,10 +140,10 @@ describe('ops API routes', () => {
     const res = await GET(new NextRequest('http://localhost/api/ops/notes'))
     const body = await res.json()
     expect(body.configured).toBe(true)
-    expect(body.pages.map((p: { zone: string }) => p.zone)).toEqual(['z0', 'z1-kevin-anan'])
+    expect(body.pages.map((p: { zone: string }) => p.zone)).toEqual(['z0', 'z1-example-client'])
     expect(body.repos).toEqual([
       { repo: 'luismetzger/metzger-creative-brain', zone: 'z0', slug: null, hasVault: false },
-      { repo: 'luismetzger/clients-kevin-anan', zone: 'z1-kevin-anan', slug: 'kevin-anan', hasVault: false },
+      { repo: 'luismetzger/clients-example-client', zone: 'z1-example-client', slug: 'example-client', hasVault: false },
     ])
   })
 
@@ -189,7 +189,7 @@ describe('ops API routes', () => {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          repo: 'luismetzger/clients-kevin-anan',
+          repo: 'luismetzger/clients-example-client',
           path: 'wiki/x.md',
           content: 'edited',
           sha: 'blob',
@@ -215,7 +215,7 @@ describe('ops API routes', () => {
       new NextRequest('http://localhost/api/ops/notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ repo: 'luismetzger/clients-kevin-anan', path: 'wiki/x.md' }),
+        body: JSON.stringify({ repo: 'luismetzger/clients-example-client', path: 'wiki/x.md' }),
       }),
     )
     expect(res.status).toBe(400)
@@ -229,7 +229,7 @@ describe('ops API routes', () => {
       new NextRequest('http://localhost/api/ops/notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ repo: 'luismetzger/clients-kevin-anan', path: 'wiki/x.md', content: 'a', sha: 'b' }),
+        body: JSON.stringify({ repo: 'luismetzger/clients-example-client', path: 'wiki/x.md', content: 'a', sha: 'b' }),
       }),
     )
     expect(res.status).toBe(429)
@@ -250,7 +250,7 @@ describe('ops API routes', () => {
     expect(ok).toMatchObject({ configured: true, minRefreshMs: 60_000 })
 
     vi.resetModules()
-    setEnv({ OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan' })
+    setEnv({ OPS_CLIENT_REPOS: 'example-client=luismetzger/clients-example-client' })
     const { GET: GET2 } = await timelineRoute()
     const missing = await (await GET2(new NextRequest('http://localhost/api/ops/timeline'))).json()
     expect(missing).toMatchObject({ configured: false, missing: ['OPS_GITHUB_TOKEN'], runs: [] })
@@ -296,7 +296,7 @@ describe('/api/ops/queue', () => {
   })
 
   it('returns a not-configured payload naming the missing variables', async () => {
-    setEnv({ OPS_CLIENT_REPOS: 'kevin-anan=luismetzger/clients-kevin-anan' })
+    setEnv({ OPS_CLIENT_REPOS: 'example-client=luismetzger/clients-example-client' })
     const { GET } = await queueRoute()
     const body = await (await GET(new NextRequest('http://localhost/api/ops/queue'))).json()
     expect(body).toMatchObject({ configured: false, missing: ['OPS_GITHUB_TOKEN'], pending: [] })
@@ -431,7 +431,7 @@ describe('/api/ops/queue', () => {
     const { GET, POST } = await queueRoute()
     await GET(
       new NextRequest(
-        'http://localhost/api/ops/queue?repo=luismetzger/clients-kevin-anan&path=queue/2026-09-02-x.md',
+        'http://localhost/api/ops/queue?repo=luismetzger/clients-example-client&path=queue/2026-09-02-x.md',
       ),
     )
     // The repo query param is simply not read; the config's brain repo is.
@@ -442,7 +442,7 @@ describe('/api/ops/queue', () => {
 
     await POST(
       queuePost({
-        repo: 'luismetzger/clients-kevin-anan',
+        repo: 'luismetzger/clients-example-client',
         path: 'queue/2026-09-02-ops-token.md',
         disposition: 'denied',
         sha: 'blob',
