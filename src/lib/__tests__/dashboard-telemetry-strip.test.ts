@@ -60,3 +60,40 @@ describe('cockpit telemetry strip catalog registration', () => {
     expect(getDefaultLayout('full')).toContain(STRIP_ID)
   })
 })
+
+describe('AI burn chart widget catalog registration (build-plan 2.2e)', () => {
+  const CHART_ID = 'ai-burn-chart'
+
+  it('is registered as a medium-width widget in both modes', () => {
+    const w = getWidgetById(CHART_ID)
+    expect(w, 'ai-burn-chart must be in WIDGET_CATALOG').toBeDefined()
+    // Medium width — the chart is designed to sit next to a companion in the
+    // grid, not span the full row. If a future redesign wants full width it
+    // should be a deliberate change here, not an accident.
+    expect(w?.defaultSize).toBe('md')
+    expect(w?.modes).toEqual(expect.arrayContaining(['local', 'full']))
+  })
+
+  it.each([
+    ['local', LOCAL_DEFAULT_LAYOUT],
+    ['full', GATEWAY_DEFAULT_LAYOUT],
+  ] as const)('sits directly under the telemetry strip in the %s default layout', (_mode, layout) => {
+    // Adjacency is the design: the strip's single-number spend card and the
+    // chart's projected trajectory answer "where am I now" and "where am I
+    // headed" as a pair. A reorder that separates them belongs on purpose.
+    const stripIdx = layout.indexOf(STRIP_ID)
+    const chartIdx = layout.indexOf(CHART_ID)
+    expect(stripIdx).toBeGreaterThanOrEqual(0)
+    expect(chartIdx).toBe(stripIdx + 1)
+  })
+
+  it('is returned by getAvailableWidgets for both modes', () => {
+    expect(getAvailableWidgets('local').some(w => w.id === CHART_ID)).toBe(true)
+    expect(getAvailableWidgets('full').some(w => w.id === CHART_ID)).toBe(true)
+  })
+
+  it('appears in getDefaultLayout for both modes', () => {
+    expect(getDefaultLayout('local')).toContain(CHART_ID)
+    expect(getDefaultLayout('full')).toContain(CHART_ID)
+  })
+})

@@ -10,6 +10,19 @@ export interface DashboardWidget {
 
 export const WIDGET_CATALOG: DashboardWidget[] = [
   {
+    // The reusable time-series chart, first series being AI burn vs the
+    // monthly envelope (build-plan 2.2e). Registered as a medium-width
+    // widget so it can sit next to a companion in the grid; `md` is 4 of
+    // 12 columns on xl viewports.
+    id: 'ai-burn-chart',
+    label: 'AI Burn Chart',
+    description: 'Cumulative AI spend against the monthly envelope, with a 7d / 30d / MTD window toggle',
+    category: 'metrics',
+    modes: ['local', 'full'],
+    defaultSize: 'md',
+    component: 'AiBurnChartWidget',
+  },
+  {
     // The three KPI cards (spend, AR, T3 queue) rendered as one row. Owns
     // its own data (each card fetches from /api/ops/kpi/:kind), so it is
     // registered `full`-width and available in both dashboard modes.
@@ -166,6 +179,12 @@ export const WIDGET_CATALOG: DashboardWidget[] = [
 export const LOCAL_DEFAULT_LAYOUT = [
   'briefing-bar',
   'cockpit-telemetry-strip',
+  // AI burn chart sits directly under the strip: the strip's spend card is
+  // a single-number MTD reading, and the chart is where you look when that
+  // number is climbing and you want to know whether the shape is a spike
+  // or a slope. Read together they answer both "where am I now" and
+  // "where am I headed."
+  'ai-burn-chart',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',
@@ -176,6 +195,7 @@ export const LOCAL_DEFAULT_LAYOUT = [
 export const GATEWAY_DEFAULT_LAYOUT = [
   'briefing-bar',
   'cockpit-telemetry-strip',
+  'ai-burn-chart',
   'activity-timeline',
   'fleet-status',
   'task-pipeline',

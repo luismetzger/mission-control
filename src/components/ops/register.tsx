@@ -10,10 +10,12 @@
 
 import { createElement } from 'react'
 import { ApprovalCardPanel } from '@/components/panels/approval-card-panel'
+import { ChartPanel } from '@/components/panels/chart-panel'
 import { KpiCardPanel } from '@/components/panels/kpi-card-panel'
 import { NotePanel } from '@/components/panels/note-panel'
 import { RunTimelinePanel } from '@/components/panels/run-timeline-panel'
 import { VoiceConsolePanel } from '@/components/panels/voice-console-panel'
+import type { ChartSeriesId } from '@/lib/ops-chart'
 import type { KpiCardKind } from '@/lib/ops-kpi'
 import {
   getOpsComponentByPanelId,
@@ -33,6 +35,21 @@ import {
 function bindKpi(kind: KpiCardKind) {
   const Bound = () => createElement(KpiCardPanel, { kind })
   Bound.displayName = `KpiCardPanel(${kind})`
+  return Bound
+}
+
+/**
+ * Bind a chart series into the shared ChartPanel component. Same mechanism as
+ * `bindKpi` and for the same reason: `renderOpsPanel` passes zero props, so
+ * the seriesId gets baked in at registration time. Unlike KPI, `chart-panel`
+ * is a *single* registered kind — different chart panels differ by `panelId`
+ * (e.g. `chart-ai-burn`) that all resolve to the same kind. A future second
+ * series adds a `registerOpsComponent` line here plus a `ChartSeriesDef`; no
+ * new kind, no new API route.
+ */
+function bindChart(seriesId: ChartSeriesId) {
+  const Bound = () => createElement(ChartPanel, { seriesId })
+  Bound.displayName = `ChartPanel(${seriesId})`
   return Bound
 }
 
@@ -103,6 +120,23 @@ if (listOpsComponents().length === 0) {
     title: 'T3 queue depth',
     maxActionTier: 'read-only',
     component: bindKpi('kpi-queue'),
+  })
+
+  // Chart panels (build-plan 2.2e). One kind (`chart-panel`), one series
+  // today, one panelId per series. The kind is the reusable shell; the
+  // panelId identifies which series the router hands off. Adding a second
+  // series is: (a) a `ChartSeriesDef` in ops-chart-sources, (b) one line
+  // here. No new kind, no new route, no new component.
+  registerOpsComponent({
+    kind: 'chart-panel',
+    panelId: 'chart-ai-burn',
+    title: 'AI burn vs envelope',
+    // Read-only. If the burn crosses the envelope, the response is opening a
+    // PR on the envelope, which is a T3 action that lives in the approval
+    // card panel. Reporting T3 here would inflate what the chart itself can
+    // do — it renders numbers, it decides nothing.
+    maxActionTier: 'read-only',
+    component: bindChart('ai-burn-vs-envelope'),
   })
 }
 

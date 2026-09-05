@@ -22,9 +22,11 @@ import { FleetStatusWidget } from './widgets/fleet-status-widget'
 import { TaskPipelineWidget } from './widgets/task-pipeline-widget'
 import { SystemHealthWidget } from './widgets/system-health-widget'
 import { CockpitTelemetryStripWidget } from './widgets/cockpit-telemetry-strip-widget'
+import { AiBurnChartWidget } from './widgets/ai-burn-chart-widget'
 
 const WIDGET_COMPONENTS: Record<string, React.ComponentType<{ data: DashboardData }>> = {
   'cockpit-telemetry-strip': CockpitTelemetryStripWidget,
+  'ai-burn-chart': AiBurnChartWidget,
   'briefing-bar': BriefingBarWidget,
   'activity-timeline': ActivityTimelineWidget,
   'fleet-status': FleetStatusWidget,

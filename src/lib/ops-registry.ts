@@ -108,6 +108,19 @@ export interface KpiCardProps {
   focusDate?: string
 }
 
+/**
+ * Props for the reusable chart panel (build-plan 2.2e). Kind is `chart-panel`
+ * — a single registration, not one-per-series like the KPI cards. See
+ * `src/lib/ops-chart.ts` for why: KPI kinds differ in contract (action tier,
+ * drill-in target) so baking those into the kind was right; chart panels
+ * differ only in *series*, and every chart panel has the same read-only
+ * contract with one deep link out. A single kind means adding a new chart
+ * is adding a series definition, not a new registration.
+ */
+export interface ChartPanelProps {
+  seriesId: import('@/lib/ops-chart').ChartSeriesId
+}
+
 /** The props contract per kind. Add the next kind here and nowhere else. */
 export interface OpsComponentPropsByKind {
   'note-panel': NotePanelProps
@@ -139,6 +152,12 @@ export interface OpsComponentPropsByKind {
   'kpi-spend': KpiCardProps
   'kpi-ar': KpiCardProps
   'kpi-queue': KpiCardProps
+  // Reusable time-series chart (architecture/04 §2, build-plan 2.2e). One
+  // kind, many series — the series is a prop, not a kind, because a chart's
+  // action tier and drill-in shape are identical across series. Read-only:
+  // ack-of-threshold happens in the T3 approval-card panel a series may link
+  // out to, never inline on the chart.
+  'chart-panel': ChartPanelProps
 }
 
 export type ComponentKind = keyof OpsComponentPropsByKind
